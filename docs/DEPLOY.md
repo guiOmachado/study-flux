@@ -255,7 +255,9 @@ O navegador só conversa com o domínio da Netlify; ela repassa `/api/*` para o 
   force = true
 ```
 
-3. Na Netlify: *Add new site → Import an existing project → GitHub* e escolha este repositório. Build e publish vêm do `netlify.toml` (`npm ci && npm run build`, `web/dist`, Node 22) — não precisa preencher nada na interface, nem variáveis de ambiente.
+3. Na Netlify: *Add new site → Import an existing project → GitHub* e escolha este repositório. Build e publish vêm do `netlify.toml` (`npm ci && npm run build && npm run deploy:check`, `web/dist`, Node 22) — não precisa preencher nada na interface, nem variáveis de ambiente.
+
+   O `deploy:check` roda depois do build e **antes de publicar**: confere se o `index.html` saiu com `<base href="/">`, se a regra `/api/*` vem antes do fallback da SPA e se o destino do proxy não ficou no placeholder. Se você esquecer o passo 2, o build falha com a mensagem apontando a linha — em vez de publicar um site que responde “sem conexão com o servidor” em toda tela.
 4. Abra o site e confira `https://SEU-SITE.netlify.app/api/health` → deve devolver o JSON da sua API. Se devolver o HTML do app, a regra de proxy não foi aplicada (veja 9.3).
 
 Dá para testar a topologia inteira **antes** de criar o site, com um simulador que aplica as regras do `netlify.toml` (estático + proxy de `/api/*` + fallback da SPA) na sua máquina:
@@ -264,6 +266,7 @@ Dá para testar a topologia inteira **antes** de criar o site, com um simulador 
 npm run build
 npm start                      # API na 5173 (terminal 1)
 npm run test:netlify -- 5180 http://127.0.0.1:5173   # "Netlify" na 5180 (terminal 2)
+npm run deploy:check                                # as mesmas checagens do build da Netlify
 SMOKE_BASE=http://127.0.0.1:5180 npm run test:web    # a suíte da interface, pelo proxy
 ```
 
@@ -314,6 +317,7 @@ Sem barra no final. Vazio é o padrão e significa “mesma origem” — nada m
 | `CORS` bloqueado no console | origem do front fora de `CORS_ORIGIN` (só na opção B) | inclua a origem exata, com `https://` e sem barra final |
 | Build falha com “Node version” | a Netlify usou um Node antigo | o `NODE_VERSION = "22"` está no `netlify.toml`; se você criou o site antes dele, rode *Clear cache and deploy site* |
 | Site pausado no meio do mês | créditos gratuitos esgotados | *Billing → upgrade* ou reduza deploys de produção |
+| Build falha com “deploy bloqueado” | o `deploy:check` encontrou o placeholder `SEU-BACKEND`, regra fora de ordem ou build sem `index.html` | a própria mensagem diz qual linha corrigir; o mesmo comando roda local com `npm run deploy:check` |
 
 **Cache:** o `netlify.toml` marca os bundles com hash como imutáveis (1 ano) e o `index.html` como `must-revalidate`, então um deploy novo aparece no primeiro recarregamento — sem aluno preso em versão antiga.
 
