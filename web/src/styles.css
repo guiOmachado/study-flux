@@ -2018,3 +2018,58 @@ button {
     font-size: 12.5px;
   }
 }
+
+/* ---------- visitante / modo público ---------- */
+.sidebar-cta {
+  margin-top: 16px;
+  padding: 13px 13px 11px;
+  border: 1px dashed #cfe0e6;
+  border-radius: 12px;
+  background: var(--surface-2);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-cta-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sidebar-cta p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.guest-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 13px 16px;
+  margin-bottom: 16px;
+  border: 1px solid #bfe9e2;
+  background: var(--brand-50);
+  border-radius: 12px;
+}
+
+.auth-guest {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line-2);
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .guest-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

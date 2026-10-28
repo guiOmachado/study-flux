@@ -308,6 +308,22 @@ async function main() {
   const cached = await searchRepositories('sepse', ['europepmc', 'pubmed', 'openalex', 'bookshelf'], { limit: 5, onlyOpenAccess: false, userId: 1 });
   check('usa cache na segunda busca', cached.cached === true);
 
+  console.log('\n# Busca pública (sem login)');
+  const { providerCatalog } = await import('../server/discovery');
+  check('catálogo de visitante esconde a biblioteca', !providerCatalog(false).some((provider) => provider.id === 'local'));
+  check('catálogo autenticado inclui a biblioteca', providerCatalog(true).some((provider) => provider.id === 'local'));
+  const guest = await searchRepositories('sepse', ['local', 'europepmc'], { limit: 3, onlyOpenAccess: false });
+  check(
+    'visitante não consulta biblioteca pessoal',
+    !guest.statuses.some((status) => status.id === 'local'),
+    guest.statuses.map((status) => status.id).join(', '),
+  );
+  check(
+    'visitante recebe resultados dos acervos externos',
+    guest.results.length === 2 && guest.statuses.every((status) => status.ok),
+    `${guest.results.length} resultados`,
+  );
+
   console.log('\n# Resumo → casos (modo estruturado)');
   const abstractText = `${epmcAbstract.text}\n\n${openalex[0]?.abstract ?? ''}`;
   const parsedAbstract = analyzeSource(abstractText, 'Sepsis review', null);

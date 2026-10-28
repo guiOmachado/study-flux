@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { useAuth } from './lib/auth';
 import { Spinner } from './components/ui';
@@ -18,6 +18,7 @@ import { SettingsPage } from './pages/Settings';
 
 function RequireAuth() {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) {
     return (
       <div className="loading-screen">
@@ -26,7 +27,13 @@ function RequireAuth() {
       </div>
     );
   }
-  if (!user) return <Navigate to="/login" replace />;
+  // Volta para onde o usuário estava tentando ir depois do login.
+  if (!user) return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
+  return <Layout />;
+}
+
+/** Casca pública: a busca em acervos pode ser usada por visitantes; o Layout se adapta. */
+function PublicShell() {
   return <Layout />;
 }
 
@@ -43,9 +50,11 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route element={<PublicShell />}>
+        <Route path="descobrir" element={<DiscoverPage />} />
+      </Route>
       <Route element={<RequireAuth />}>
         <Route index element={<DashboardPage />} />
-        <Route path="descobrir" element={<DiscoverPage />} />
         <Route path="materiais" element={<MaterialsPage />} />
         <Route path="materiais/:id" element={<MaterialDetailPage />} />
         <Route path="casos" element={<CasesPage />} />

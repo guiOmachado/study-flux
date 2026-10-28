@@ -50,7 +50,7 @@ As plataformas de questões existentes resolvem parte disso, mas não aproveitam
 | Área | Recursos |
 | --- | --- |
 | **Materiais** | Upload de PDF (com camada de texto), DOCX, TXT e MD; colar texto; análise automática de seções, temas, condições e questões com gabarito; prévia do que será gerado. |
-| **Descobrir conteúdo** | Busca em **acervos científicos abertos** (Europe PMC, NCBI Bookshelf, OpenAlex, PubMed) e na própria biblioteca, com filtro de acesso aberto, leitura de resumo ou texto completo, importação por **link** e geração de casos em seguida. Cada material guarda referência, licença e URL de origem. Também é possível **gerar casos só por tema** (com IA). |
+| **Descobrir conteúdo** | **Busca aberta, sem login** em acervos científicos (Europe PMC, NCBI Bookshelf, OpenAlex, PubMed) e na própria biblioteca, com filtro de acesso aberto, leitura de resumo ou texto completo, importação por **link** e geração de casos em seguida. Cada material guarda referência, licença e URL de origem. Importar (de um acervo ou por link) e **gerar por tema** (IA) pedem conta, porque gravam na sua biblioteca. |
 | **Geração de casos** | **Modo estruturado (sem IA)**: extrai questões de provas antigas com gabarito e monta perguntas de completar (cloze) fiéis ao texto. **Modo IA (opcional)**: casos clínicos completos com paciente, exame físico, exames e perguntas em progressão. **Automático**: usa IA quando disponível. |
 | **Biblioteca** | Filtros por área, dificuldade, status e busca; publicar/despublicar; duplicar (inclusive casos da comunidade); exportar/importar JSON; editor manual completo. |
 | **Treino** | Caso com prontuário sempre visível, feedback imediato com justificativa e trecho da fonte, atalhos de teclado, resumo final com revisão das respostas. |
@@ -93,6 +93,8 @@ npm run test:discovery  # testes dos acervos (offline, sem rede)
 | `PORT` | `8787` | Porta da API/servidor de produção. |
 | `DATA_DIR` | `./data` | Onde ficam o banco SQLite e o segredo de sessão. |
 | `APP_SECRET` | gerado em `data/app.secret` | Segredo para assinar sessões e criptografar a chave de IA. |
+| `OPENALEX_MAILTO` | — | E-mail de contato enviado à API do OpenAlex (boa prática de uso). |
+| `TRUST_PROXY` | `1` | Confia em 1 salto de proxy para limitar a busca anônima por visitante. Use `0` em rede local sem proxy. |
 
 > O banco é criado e semeado automaticamente no primeiro start. `data/` e `web/dist/` estão no `.gitignore`.
 
@@ -140,6 +142,7 @@ Detalhes em [docs/ARQUITETURA.md](docs/ARQUITETURA.md).
 
 ## Limitações conhecidas (honestas)
 
+- A **busca** nos acervos é aberta (sem conta), mas **importar, gerar casos, treinar e revisar exigem login**. A busca anônima é limitada (30 por visitante a cada 5 minutos) para não abusar das APIs públicas.
 - A descoberta usa **apenas fontes abertas**. Artigos pagos não são baixados: para eles, o app importa só o resumo, quando disponível, e sempre mostra o link da editora. O preview em nuvem pode não ter saída para a internet — nesse caso a busca avisa e continua funcionando com a sua biblioteca.
 - **PDF escaneado sem camada de texto** não é lido: não há OCR nesta versão. A plataforma avisa e sugere colar o texto.
 - O modo estruturado funciona melhor com material **com subtítulos** (Definição, Quadro clínico, Diagnóstico, Tratamento) ou com **questões + gabarito**. Texto corrido gera menos perguntas.

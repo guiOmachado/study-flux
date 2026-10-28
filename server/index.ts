@@ -17,6 +17,9 @@ import { AIError } from './generation/llm';
 
 const app = express();
 app.disable('x-powered-by');
+// Em preview/PaaS o app roda atrás de proxy: confiar em 1 salto permite limitar busca anônima por visitante.
+// Em rede local sem proxy, defina TRUST_PROXY=0 para ignorar X-Forwarded-For.
+app.set('trust proxy', process.env.TRUST_PROXY === '0' ? false : 1);
 app.use(express.json({ limit: '3mb' }));
 app.use(express.urlencoded({ extended: true, limit: '3mb' }));
 app.use(attachUser);

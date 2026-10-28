@@ -235,7 +235,8 @@ export const api = {
   },
 
   discovery: {
-    providers: () => request<{ providers: DiscoveryProviderInfo[]; aiReady: boolean; note: string }>('/discovery/providers'),
+    providers: () =>
+      request<{ providers: DiscoveryProviderInfo[]; aiReady: boolean; guest: boolean; note: string }>('/discovery/providers'),
     search: (params: { q: string; providers?: string[]; limit?: number; oa?: boolean }) => {
       const query = new URLSearchParams({ q: params.q });
       if (params.providers?.length) query.set('providers', params.providers.join(','));

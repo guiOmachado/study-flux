@@ -12,7 +12,39 @@ import type { DiscoveryResult } from '../discovery/types';
 import { formatReference } from '../discovery/reference';
 
 export const discoveryRouter = Router();
-discoveryRouter.use(requireUser);
+
+/**
+ * Busca em acervos externos é pública: o aluno pode explorar antes de criar conta.
+ * Para evitar abuso (o servidor vira intermediário das APIs públicas), limitamos
+ * buscas anônimas por IP. Importar/gerar continua exigindo login, porque cria dados.
+ */
+const ANON_WINDOW_MS = 5 * 60_000;
+const ANON_MAX_SEARCHES = 30; // por visitante
+const ANON_MAX_TOTAL = 150; // teto global: protege as APIs públicas mesmo com IPs trocados
+const anonSearches = new Map<string, number[]>();
+let anonGlobal: number[] = [];
+
+function anonymousSearchAllowed(ip: string): { ok: boolean; reason?: 'ip' | 'global' } {
+  const now = Date.now();
+  anonGlobal = anonGlobal.filter((at) => now - at < ANON_WINDOW_MS);
+
+  const recent = (anonSearches.get(ip) ?? []).filter((at) => now - at < ANON_WINDOW_MS);
+  if (recent.length >= ANON_MAX_SEARCHES) {
+    anonSearches.set(ip, recent);
+    return { ok: false, reason: 'ip' };
+  }
+  if (anonGlobal.length >= ANON_MAX_TOTAL) return { ok: false, reason: 'global' };
+
+  recent.push(now);
+  anonSearches.set(ip, recent);
+  anonGlobal.push(now);
+  if (anonSearches.size > 2000) {
+    for (const [key, hits] of anonSearches) {
+      if (hits.every((at) => now - at >= ANON_WINDOW_MS)) anonSearches.delete(key);
+    }
+  }
+  return { ok: true };
+}
 
 const VALID_TYPES: DiscoveryResult['type'][] = ['artigo', 'capitulo', 'preprint', 'material'];
 
@@ -49,14 +81,31 @@ function sanitizeResult(raw: unknown): DiscoveryResult | null {
 }
 
 discoveryRouter.get('/providers', (req, res) => {
+  const userId = req.user?.id ?? null;
   res.json({
-    providers: providerCatalog(),
-    aiReady: isAiReady(req.user!.id),
-    note: 'Acervos externos consultados publicamente. Texto completo só é importado quando a fonte é de acesso aberto.',
+    providers: providerCatalog(Boolean(userId)),
+    aiReady: userId ? isAiReady(userId) : false,
+    guest: !userId,
+    note: userId
+      ? 'Acervos externos consultados publicamente. Texto completo só é importado quando a fonte é de acesso aberto.'
+      : 'Busca aberta em acervos públicos: dá para explorar sem conta. Guardar o material, gerar casos e treinar exigem login.',
   });
 });
 
 discoveryRouter.get('/search', async (req, res) => {
+  const userId = req.user?.id ?? null;
+  if (!userId) {
+    const allowed = anonymousSearchAllowed(req.ip ?? 'anonimo');
+    if (!allowed.ok) {
+      return res.status(429).json({
+        error:
+          allowed.reason === 'global'
+            ? 'A busca pública está com muita procura agora. Tente novamente em alguns minutos ou entre na sua conta.'
+            : 'Muitas buscas em pouco tempo. Entre na sua conta (é grátis) ou tente novamente em alguns minutos.',
+      });
+    }
+  }
+
   const query = String(req.query.q ?? '').trim();
   if (query.length < 2) {
     return res.status(400).json({ error: 'Digite pelo menos 2 caracteres para buscar.' });
@@ -73,7 +122,7 @@ discoveryRouter.get('/search', async (req, res) => {
     const response = await searchRepositories(query, providersParam, {
       limit,
       onlyOpenAccess,
-      userId: req.user!.id,
+      userId: userId ?? undefined,
     });
     return res.json(response);
   } catch (error) {
@@ -149,7 +198,7 @@ async function importAndMaybeGenerate(
   };
 }
 
-discoveryRouter.post('/import', async (req, res) => {
+discoveryRouter.post('/import', requireUser, async (req, res) => {
   const userId = req.user!.id;
   const provider = String(req.body?.provider ?? '').trim();
   const id = String(req.body?.id ?? '').trim();
@@ -221,7 +270,7 @@ discoveryRouter.post('/import', async (req, res) => {
   }
 });
 
-discoveryRouter.post('/url', async (req, res) => {
+discoveryRouter.post('/url', requireUser, async (req, res) => {
   const userId = req.user!.id;
   const url = String(req.body?.url ?? '').trim();
   if (!url) return res.status(400).json({ error: 'Informe o link da página ou do PDF.' });

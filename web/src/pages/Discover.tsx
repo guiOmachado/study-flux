@@ -11,6 +11,7 @@ import {
   type DiscoveryResultDTO,
   type DiscoverySearchDTO,
 } from '../lib/api';
+import { useAuth } from '../lib/auth';
 import { useFetch } from '../lib/hooks';
 import { useToast } from '../lib/toast';
 import { PageHeader, SectionCard, Spinner, LoadingBlock } from '../components/ui';
@@ -44,10 +45,15 @@ export function DiscoverPage() {
   const [tab, setTab] = useState<Tab>('acervos');
   const [notice, setNotice] = useState<string | null>(null);
   const toast = useToast();
+  const { user } = useAuth();
+  const isGuest = !user;
 
-  const providers = useFetch(() => api.discovery.providers(), []);
-  const settings = useFetch<SettingsDTO>(() => api.settings.get(), []);
+  const providers = useFetch(() => api.discovery.providers(), [user?.id]);
+  // Preferências exigem sessão; visitante não precisa delas (IA fica desligada).
+  const settings = useFetch<SettingsDTO | null>(() => (user ? api.settings.get() : Promise.resolve(null)), [user?.id]);
   const aiReady = Boolean(settings.data?.ai.enabled && settings.data?.ai.hasKey);
+  const loginHref = '/login?next=%2Fdescobrir';
+  const registerHref = '/login?mode=register&next=%2Fdescobrir';
 
   const handleImported = (outcome: DiscoveryImportOutcome, openMaterial: boolean, navigate: (path: string) => void) => {
     if (outcome.generation && outcome.generation.created + outcome.generation.updated > 0) {
@@ -68,14 +74,48 @@ export function DiscoverPage() {
     <>
       <PageHeader
         title="Descobrir conteúdo"
-        subtitle="Busque em acervos científicos abertos, importe por link ou peça casos a partir de um tema. Tudo entra na sua biblioteca como material, com fonte e licença registradas."
+        subtitle={
+          isGuest
+            ? 'Busque artigos e capítulos em acervos científicos abertos, sem precisar de conta. Para importar e transformar em casos, é só entrar.'
+            : 'Busque em acervos científicos abertos, importe por link ou peça casos a partir de um tema. Tudo entra na sua biblioteca como material, com fonte e licença registradas.'
+        }
         actions={
-          <Link className="btn btn-secondary" to="/configuracoes">
-            <Icon name="settings" size={15} />
-            {aiReady ? 'IA ativa' : 'Configurar IA'}
-          </Link>
+          isGuest ? (
+            <Link className="btn btn-primary" to={loginHref}>
+              <Icon name="user" size={15} />
+              Entrar para importar
+            </Link>
+          ) : (
+            <Link className="btn btn-secondary" to="/configuracoes">
+              <Icon name="settings" size={15} />
+              {aiReady ? 'IA ativa' : 'Configurar IA'}
+            </Link>
+          )
         }
       />
+
+      {isGuest ? (
+        <div className="guest-banner">
+          <div className="row" style={{ alignItems: 'flex-start', gap: 10 }}>
+            <Icon name="globe" size={17} style={{ color: 'var(--brand-700)', flex: 'none', marginTop: 2 }} />
+            <div>
+              <strong className="small">Você está no modo visitante.</strong>
+              <div className="tiny muted">
+                A busca nos acervos é livre — dá para ler resumos e conferir a fonte. Importar para a sua biblioteca, gerar casos,
+                treinar e revisar pedem uma conta (leva menos de um minuto e é grátis).
+              </div>
+            </div>
+          </div>
+          <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+            <Link className="btn btn-primary btn-sm" to={loginHref}>
+              Entrar
+            </Link>
+            <Link className="btn btn-secondary btn-sm" to={registerHref}>
+              Criar conta
+            </Link>
+          </div>
+        </div>
+      ) : null}
 
       <div className="tabs" role="tablist">
         {[
@@ -110,10 +150,38 @@ export function DiscoverPage() {
       ) : null}
 
       {tab === 'acervos' ? (
-        <RepositoriesTab providers={providers.data?.providers ?? []} aiReady={aiReady} onImported={handleImported} />
+        <RepositoriesTab
+          providers={providers.data?.providers ?? []}
+          aiReady={aiReady}
+          isGuest={isGuest}
+          loginHref={loginHref}
+          onImported={handleImported}
+        />
       ) : null}
-      {tab === 'tema' ? <TopicTab aiReady={aiReady} /> : null}
-      {tab === 'link' ? <LinkTab aiReady={aiReady} onImported={handleImported} /> : null}
+      {tab === 'tema' ? (
+        isGuest ? (
+          <GuestGate
+            title="Gerar casos por tema precisa de conta"
+            description="Este modo cria casos direto na sua biblioteca — não tem material de origem. Entre para usar (precisa de IA configurada)."
+            loginHref={loginHref}
+            registerHref={registerHref}
+          />
+        ) : (
+          <TopicTab aiReady={aiReady} />
+        )
+      ) : null}
+      {tab === 'link' ? (
+        isGuest ? (
+          <GuestGate
+            title="Importar por link precisa de conta"
+            description="O link vira um material na sua biblioteca, com referência e licença. Entre para importar e gerar casos a partir dele."
+            loginHref={loginHref}
+            registerHref={registerHref}
+          />
+        ) : (
+          <LinkTab aiReady={aiReady} onImported={handleImported} />
+        )
+      ) : null}
 
       <div className="card card-pad" style={{ marginTop: 18 }}>
         <div className="row" style={{ alignItems: 'flex-start', gap: 10 }}>
@@ -133,10 +201,14 @@ export function DiscoverPage() {
 function RepositoriesTab({
   providers,
   aiReady,
+  isGuest,
+  loginHref,
   onImported,
 }: {
   providers: DiscoveryProviderInfo[];
   aiReady: boolean;
+  isGuest: boolean;
+  loginHref: string;
   onImported: (outcome: DiscoveryImportOutcome, openMaterial: boolean, navigate: (path: string) => void) => void;
 }) {
   const [query, setQuery] = useState('');
@@ -148,6 +220,17 @@ function RepositoriesTab({
   const [data, setData] = useState<DiscoverySearchDTO | null>(null);
   const [importTarget, setImportTarget] = useState<DiscoveryResultDTO | null>(null);
   const toast = useToast();
+  const navigate = useNavigate();
+
+  // A lista de acervos muda com a sessão (visitante não tem "Minha biblioteca").
+  useEffect(() => {
+    if (providers.length === 0) return;
+    setSelected((prev) => {
+      const valid = prev.filter((id) => providers.some((provider) => provider.id === id));
+      if (valid.length > 0) return valid;
+      return providers.filter((provider) => provider.id !== 'local').slice(0, 3).map((provider) => provider.id);
+    });
+  }, [providers]);
 
   const toggleProvider = (id: string) => {
     setSelected((prev) => (prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id]));
@@ -157,6 +240,10 @@ function RepositoriesTab({
     event?.preventDefault();
     if (query.trim().length < 2) {
       setError('Digite pelo menos 2 caracteres.');
+      return;
+    }
+    if (selected.length === 0) {
+      setError('Selecione pelo menos um acervo.');
       return;
     }
     setBusy(true);
@@ -255,7 +342,12 @@ function RepositoriesTab({
       {data && data.results.length > 0 ? (
         <div className="stack-sm">
           {data.results.map((result) => (
-            <ResultCard key={`${result.provider}:${result.id}`} result={result} onImport={() => setImportTarget(result)} />
+            <ResultCard
+              key={`${result.provider}:${result.id}`}
+              result={result}
+              isGuest={isGuest}
+              onImport={() => (isGuest ? navigate(loginHref) : setImportTarget(result))}
+            />
           ))}
         </div>
       ) : null}
@@ -264,9 +356,21 @@ function RepositoriesTab({
         <SectionCard title="Como funciona a descoberta">
           <div className="stack-sm">
             {[
-              { icon: 'globe', title: '1. Busque por tema, condição ou autor', text: 'Consultamos Europe PMC, NCBI Bookshelf, OpenAlex, PubMed e a sua própria biblioteca.' },
+              {
+                icon: 'globe',
+                title: '1. Busque por tema, condição ou autor',
+                text: isGuest
+                  ? 'Consultamos Europe PMC, NCBI Bookshelf, OpenAlex e PubMed. A busca é aberta — não precisa de conta.'
+                  : 'Consultamos Europe PMC, NCBI Bookshelf, OpenAlex, PubMed e a sua própria biblioteca.',
+              },
               { icon: 'bookOpen', title: '2. Escolha a fonte', text: 'Texto completo aberto gera casos melhores; resumos geram blocos de fixação curtos.' },
-              { icon: 'sparkles', title: '3. Importe e gere', text: 'A fonte vira material com referência e licença; depois os casos são gerados (IA ou modo estruturado).' },
+              {
+                icon: isGuest ? 'lock' : 'sparkles',
+                title: '3. Importe e gere',
+                text: isGuest
+                  ? 'Para importar, é preciso entrar: a fonte vira material com referência e licença, e os casos ficam na sua biblioteca.'
+                  : 'A fonte vira material com referência e licença; depois os casos são gerados (IA ou modo estruturado).',
+              },
             ].map((step) => (
               <div key={step.title} className="row" style={{ alignItems: 'flex-start', gap: 10, padding: '6px 0' }}>
                 <div className="file-icon" style={{ width: 32, height: 32, borderRadius: 9 }}>
@@ -280,9 +384,11 @@ function RepositoriesTab({
             ))}
             <div className="divider" />
             <p className="tiny muted">
-              {aiReady
-                ? 'IA ativa: os casos gerados a partir de artigos serão casos clínicos completos, com perguntas em progressão.'
-                : 'IA desativada: o modo estruturado monta perguntas de completar a partir dos trechos. Para artigos, a IA costuma render casos bem melhores.'}
+              {isGuest
+                ? 'Visitante pode buscar e ler os resultados à vontade. Importar e gerar casos faz parte da conta — a demo já vem com exemplos prontos.'
+                : aiReady
+                  ? 'IA ativa: os casos gerados a partir de artigos serão casos clínicos completos, com perguntas em progressão.'
+                  : 'IA desativada: o modo estruturado monta perguntas de completar a partir dos trechos. Para artigos, a IA costuma render casos bem melhores.'}
             </p>
           </div>
         </SectionCard>
@@ -315,7 +421,7 @@ function StatusChip({ status }: { status: DiscoveryProviderStatus }) {
   );
 }
 
-function ResultCard({ result, onImport }: { result: DiscoveryResultDTO; onImport: () => void }) {
+function ResultCard({ result, isGuest, onImport }: { result: DiscoveryResultDTO; isGuest: boolean; onImport: () => void }) {
   const [expanded, setExpanded] = useState(false);
   return (
     <article className="result-card">
@@ -350,8 +456,8 @@ function ResultCard({ result, onImport }: { result: DiscoveryResultDTO; onImport
       )}
       <div className="row row-wrap" style={{ gap: 6 }}>
         <button className="btn btn-primary btn-sm" onClick={onImport}>
-          <Icon name={result.provider === 'local' ? 'folder' : 'sparkles'} size={13} />
-          {result.provider === 'local' ? 'Reaproveitar material' : 'Importar e gerar casos'}
+          <Icon name={isGuest ? 'lock' : result.provider === 'local' ? 'folder' : 'sparkles'} size={13} />
+          {isGuest ? 'Entrar para importar' : result.provider === 'local' ? 'Reaproveitar material' : 'Importar e gerar casos'}
         </button>
         {result.url ? (
           <a className="btn btn-secondary btn-sm" href={result.url} target="_blank" rel="noreferrer noopener">
@@ -804,6 +910,44 @@ function LinkTab({
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function GuestGate({
+  title,
+  description,
+  loginHref,
+  registerHref,
+}: {
+  title: string;
+  description: string;
+  loginHref: string;
+  registerHref: string;
+}) {
+  return (
+    <div className="card card-pad stack" style={{ maxWidth: 640 }}>
+      <div className="row" style={{ alignItems: 'flex-start', gap: 12 }}>
+        <div className="file-icon" style={{ width: 38, height: 38, borderRadius: 10, flex: 'none' }}>
+          <Icon name="lock" size={17} />
+        </div>
+        <div>
+          <h2 style={{ fontSize: 17 }}>{title}</h2>
+          <p className="small muted" style={{ marginTop: 4 }}>{description}</p>
+        </div>
+      </div>
+      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+        <Link className="btn btn-primary" to={loginHref}>
+          <Icon name="user" size={15} />
+          Entrar
+        </Link>
+        <Link className="btn btn-secondary" to={registerHref}>
+          Criar conta grátis
+        </Link>
+      </div>
+      <div className="tiny muted">
+        A aba <strong>Acervos científicos</strong> continua livre: dá para buscar e ler resumos sem conta.
+      </div>
     </div>
   );
 }

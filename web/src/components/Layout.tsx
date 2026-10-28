@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Icon, Logo } from './Icon';
 import { useAuth } from '../lib/auth';
 import { initials } from '../lib/format';
 import { api } from '../lib/api';
+
+const GUEST_NAV = [{ to: '/descobrir', label: 'Descobrir', icon: 'globe', end: false }];
 
 const NAV = [
   { to: '/', label: 'Início', icon: 'home', end: true },
@@ -20,12 +22,17 @@ export function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const isGuest = !user;
 
   useEffect(() => {
     setOpen(false);
   }, [location.pathname]);
 
   useEffect(() => {
+    if (isGuest) {
+      setDue(0);
+      return;
+    }
     let alive = true;
     const load = () => {
       api.srs
@@ -41,7 +48,7 @@ export function Layout() {
       alive = false;
       window.removeEventListener('sf:srs-changed', load);
     };
-  }, [location.pathname]);
+  }, [isGuest, location.pathname]);
 
   const handleLogout = async () => {
     await logout();
@@ -60,36 +67,80 @@ export function Layout() {
           </div>
         </NavLink>
 
-        <span className="nav-label">Estudar</span>
-        {NAV.map((item) => (
-          <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-            <Icon name={item.icon} size={17} />
-            {item.label}
-          </NavLink>
-        ))}
+        {isGuest ? (
+          <>
+            <span className="nav-label">Explorar</span>
+            {GUEST_NAV.map((item) => (
+              <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                <Icon name={item.icon} size={17} />
+                {item.label}
+              </NavLink>
+            ))}
 
-        <span className="nav-label">Revisar</span>
-        <NavLink to="/revisao" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-          <Icon name="layers" size={17} />
-          Revisão espaçada
-          {due > 0 ? <span className="nav-badge">{due}</span> : null}
-        </NavLink>
-        <NavLink to="/configuracoes" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-          <Icon name="settings" size={17} />
-          Configurações
-        </NavLink>
+            <div className="sidebar-cta">
+              <div className="sidebar-cta-title">
+                <Icon name="lock" size={14} />
+                Modo visitante
+              </div>
+              <p className="tiny muted">
+                Você pode buscar e ler os resultados dos acervos. Para importar, gerar casos, treinar e revisar, entre na sua conta.
+              </p>
+              <Link className="btn btn-primary btn-sm btn-block" to="/login?next=%2Fdescobrir">
+                <Icon name="user" size={14} />
+                Entrar
+              </Link>
+              <Link className="btn btn-ghost btn-sm btn-block" to="/login?mode=register&next=%2Fdescobrir">
+                Criar conta grátis
+              </Link>
+            </div>
+          </>
+        ) : (
+          <>
+            <span className="nav-label">Estudar</span>
+            {NAV.map((item) => (
+              <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                <Icon name={item.icon} size={17} />
+                {item.label}
+              </NavLink>
+            ))}
+
+            <span className="nav-label">Revisar</span>
+            <NavLink to="/revisao" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+              <Icon name="layers" size={17} />
+              Revisão espaçada
+              {due > 0 ? <span className="nav-badge">{due}</span> : null}
+            </NavLink>
+            <NavLink to="/configuracoes" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+              <Icon name="settings" size={17} />
+              Configurações
+            </NavLink>
+          </>
+        )}
 
         <div className="sidebar-foot">
-          <div className="user-chip">
-            <div className="avatar">{user ? initials(user.name) : '?'}</div>
-            <div className="user-meta">
-              <div className="user-name">{user?.name ?? 'Visitante'}</div>
-              <div className="user-mail">{user?.email ?? ''}</div>
+          {isGuest ? (
+            <div className="user-chip">
+              <div className="avatar">?</div>
+              <div className="user-meta">
+                <div className="user-name">Visitante</div>
+                <div className="user-mail">sem conta</div>
+              </div>
+              <Link className="icon-btn" to="/login?next=%2Fdescobrir" title="Entrar" aria-label="Entrar">
+                <Icon name="user" size={16} />
+              </Link>
             </div>
-            <button className="icon-btn" onClick={handleLogout} title="Sair" aria-label="Sair">
-              <Icon name="logout" size={16} />
-            </button>
-          </div>
+          ) : (
+            <div className="user-chip">
+              <div className="avatar">{initials(user.name)}</div>
+              <div className="user-meta">
+                <div className="user-name">{user.name}</div>
+                <div className="user-mail">{user.email}</div>
+              </div>
+              <button className="icon-btn" onClick={handleLogout} title="Sair" aria-label="Sair">
+                <Icon name="logout" size={16} />
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -102,9 +153,16 @@ export function Layout() {
             <Logo size={28} />
             <strong style={{ letterSpacing: '-0.02em' }}>Study Flux</strong>
           </div>
-          <button className="icon-btn" onClick={handleLogout} aria-label="Sair">
-            <Icon name="logout" size={18} />
-          </button>
+          {isGuest ? (
+            <Link className="btn btn-primary btn-sm" to="/login?next=%2Fdescobrir">
+              <Icon name="user" size={14} />
+              Entrar
+            </Link>
+          ) : (
+            <button className="icon-btn" onClick={handleLogout} aria-label="Sair">
+              <Icon name="logout" size={18} />
+            </button>
+          )}
         </header>
         <main className="page">
           <Outlet />

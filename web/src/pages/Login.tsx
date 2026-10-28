@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Icon, Logo } from '../components/Icon';
 import { Spinner } from '../components/ui';
 import { useAuth } from '../lib/auth';
@@ -8,14 +8,18 @@ import { ApiError } from '../lib/api';
 export function LoginPage() {
   const { user, login, register, demo } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [params] = useSearchParams();
+  // Para onde voltar depois do login (ex.: /descobrir?tab=acervos). Só caminhos internos.
+  const rawNext = params.get('next') ?? '';
+  const redirectTo = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/';
+  const [mode, setMode] = useState<'login' | 'register'>(params.get('mode') === 'register' ? 'register' : 'login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState<'form' | 'demo' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to={redirectTo} replace />;
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -24,7 +28,7 @@ export function LoginPage() {
     try {
       if (mode === 'register') await register(name, email, password);
       else await login(email, password);
-      navigate('/');
+      navigate(redirectTo);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível entrar. Tente novamente.');
     } finally {
@@ -37,7 +41,7 @@ export function LoginPage() {
     setBusy('demo');
     try {
       await demo();
-      navigate('/');
+      navigate(redirectTo);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível abrir a conta demo.');
     } finally {
@@ -68,6 +72,13 @@ export function LoginPage() {
               <div>
                 Material vira questão
                 <small>PDF, DOCX, texto colado ou prova antiga com gabarito.</small>
+              </div>
+            </div>
+            <div className="auth-feature">
+              <Icon name="globe" size={18} />
+              <div>
+                Busca em acervos abertos
+                <small>Artigos e capítulos do Europe PMC, NCBI Bookshelf, OpenAlex e PubMed.</small>
               </div>
             </div>
             <div className="auth-feature">
@@ -157,6 +168,14 @@ export function LoginPage() {
               {busy === 'demo' ? <Spinner dark /> : <Icon name="sparkles" size={14} />}
               Entrar como demo
             </button>
+          </div>
+
+          <div className="auth-guest">
+            <div className="tiny muted" style={{ marginBottom: 6 }}>Ainda só quer pesquisar?</div>
+            <Link className="btn btn-secondary btn-block" to="/descobrir">
+              <Icon name="globe" size={15} />
+              Buscar em acervos científicos sem conta
+            </Link>
           </div>
 
           <div className="auth-switch">

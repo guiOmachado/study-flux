@@ -54,7 +54,7 @@ npm run seed
 npm run reset
 ```
 
-Variáveis: `PORT`, `DATA_DIR`, `APP_SECRET`, `OPENALEX_MAILTO` (ver README). O banco e a conta demo são criados no primeiro start (`ensureSeeded`).
+Variáveis: `PORT`, `DATA_DIR`, `APP_SECRET`, `OPENALEX_MAILTO`, `TRUST_PROXY` (ver README). O banco e a conta demo são criados no primeiro start (`ensureSeeded`).
 
 ---
 
@@ -173,6 +173,15 @@ interface SourceProvider {
 
 Só fontes **abertas** são baixadas: nada de contornar paywall. Quando só o resumo está acessível, o resultado vem marcado como `resumo` e a importação avisa.
 
+### Busca pública (sem login)
+
+`/descobrir` é a única rota de interface aberta a visitantes. `GET /api/discovery/providers` e `GET /api/discovery/search` respondem sem sessão; `POST /api/discovery/import` e `/url` continuam exigindo login, porque gravam material na conta.
+
+- Para visitante, o catálogo omite o acervo `local` (biblioteca pessoal) e `searchRepositories()` descarta `local` mesmo se pedido no parâmetro `providers`. `aiReady` volta `false`.
+- Abuso é contido por dois limites em memória: **30 buscas anônimas por IP a cada 5 min** e **150 no total no mesmo intervalo** (protege as APIs públicas de terceiros). Resposta: `429` com mensagem em português.
+- O app usa `trust proxy` (1 salto) para limitar por visitante atrás do proxy do preview/PaaS. Em rede local sem proxy, `TRUST_PROXY=0` desliga.
+- O índice de resultados usados pelo import tem teto de 400 entradas, já que buscas anônimas também o alimentam.
+
 ### Fluxo
 
 1. `GET /api/discovery/search?q=…` — consulta os acervos em paralelo; falha de um acervo não derruba a busca (`statuses[]` diz o que falhou e por quê). Resultados ficam em cache de 10 min por combinação (query + acervos + filtros).
@@ -197,7 +206,7 @@ O índice de resultados fica em memória por 30 min para que o `import` não dep
 
 ### Testes
 
-`npm run test:discovery` roda 35 verificações offline: parser HTML/JATS/XML, guarda anti-SSRF, os quatro acervos externos com respostas simuladas (resumo e texto completo), cache agregado, importação → análise → geração, regeração sem duplicar e tratamento de erro de rede. Não faz requisição real — roda em qualquer máquina, inclusive sem internet.
+`npm run test:discovery` roda 39 verificações offline: parser HTML/JATS/XML, guarda anti-SSRF, os quatro acervos externos com respostas simuladas (resumo e texto completo), cache agregado, importação → análise → geração, regeração sem duplicar e tratamento de erro de rede. Não faz requisição real — roda em qualquer máquina, inclusive sem internet.
 
 ---
 
@@ -327,10 +336,10 @@ O índice de resultados fica em memória por 30 min para que o `import` não dep
 | POST | `/api/generate/preview/:id` | Prévia estruturada sem salvar. |
 | POST | `/api/generate/source/:id` | Gerar casos (`mode`, `maxCases`, `publish`). |
 | POST | `/api/generate/topic` | Gerar por tema (exige IA). |
-| GET | `/api/discovery/providers` | Acervos disponíveis, padrão selecionado e se a IA está pronta. |
-| GET | `/api/discovery/search` | Busca agregada (`q`, `providers`, `limit`, `oa`). |
-| POST | `/api/discovery/import` | Importa um resultado (`provider`, `id`, `mode`, `generate`, `aiMode`, `publish`, `maxCases`). |
-| POST | `/api/discovery/url` | Importa por link (`url`, `title`, …). |
+| GET | `/api/discovery/providers` | Acervos disponíveis, se a IA está pronta e se a sessão é de visitante. **Público.** |
+| GET | `/api/discovery/search` | Busca agregada (`q`, `providers`, `limit`, `oa`). **Público** (limitado por IP). |
+| POST | `/api/discovery/import` | Importa um resultado (`provider`, `id`, `mode`, `generate`, `aiMode`, `publish`, `maxCases`). **Requer login.** |
+| POST | `/api/discovery/url` | Importa por link (`url`, `title`, …). **Requer login.** |
 | POST | `/api/attempts` / `start-batch` | Iniciar treino / simulado. |
 | GET | `/api/attempts` / `:id` | Histórico / detalhe. |
 | POST | `/api/attempts/:id/answer` / `finish` | Responder / finalizar. |

@@ -16,8 +16,8 @@ export function getProvider(id: string): SourceProvider | null {
   return PROVIDERS.find((provider) => provider.id === id) ?? null;
 }
 
-export function providerCatalog() {
-  return PROVIDERS.map((provider) => ({
+export function providerCatalog(includeLocal = true) {
+  return PROVIDERS.filter((provider) => includeLocal || provider.id !== 'local').map((provider) => ({
     id: provider.id,
     label: provider.label,
     description: provider.description,
@@ -49,6 +49,7 @@ const cache = new Map<string, CacheEntry>();
 const resultIndex = new Map<string, { at: number; result: DiscoveryResult }>();
 const CACHE_TTL_MS = 10 * 60_000;
 const MAX_CACHE = 120;
+const MAX_RESULTS = 400;
 
 function cacheKey(query: string, ids: string[], options: SearchOptions): string {
   return `${options.userId ?? 0}|${ids.join(',')}|${options.limit}|${options.onlyOpenAccess ? 1 : 0}|${query.toLowerCase()}`;
@@ -69,7 +70,9 @@ export async function searchRepositories(
 ): Promise<SearchResponse> {
   const trimmed = query.trim();
   const ids = requestedIds.length > 0 ? requestedIds : ['local', 'europepmc', 'bookshelf'];
-  const selected = ids.map(getProvider).filter((provider): provider is SourceProvider => Boolean(provider));
+  // Sem sessão não há biblioteca pessoal: o acervo "local" só entra para usuários autenticados.
+  const allowed = ids.filter((id) => id !== 'local' || Boolean(options.userId));
+  const selected = allowed.map(getProvider).filter((provider): provider is SourceProvider => Boolean(provider));
   if (selected.length === 0) {
     throw new DiscoveryError('Nenhum acervo válido foi selecionado.', 'discovery', 400);
   }
@@ -122,7 +125,15 @@ export async function searchRepositories(
   };
   remember(key, payload);
   for (const result of results) {
-    resultIndex.set(`${result.provider}:${result.id}`, { at: Date.now(), result });
+    const resultKey = `${result.provider}:${result.id}`;
+    resultIndex.delete(resultKey);
+    resultIndex.set(resultKey, { at: Date.now(), result });
+  }
+  // Busca anônima também popula o índice: mantém um teto para não crescer sem limite.
+  while (resultIndex.size > MAX_RESULTS) {
+    const oldest = resultIndex.keys().next().value;
+    if (!oldest) break;
+    resultIndex.delete(oldest);
   }
   return payload;
 }

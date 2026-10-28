@@ -44,6 +44,8 @@ const PATHS: Record<string, string> = {
   link: 'M10 13a4 4 0 0 0 5.7 0l2.8-2.8a4 4 0 0 0-5.7-5.7L11.4 6M14 11a4 4 0 0 0-5.7 0l-2.8 2.8a4 4 0 0 0 5.7 5.7l1.4-1.3',
   graduation: 'M3 9.5 12 5l9 4.5-9 4.5-9-4.5ZM7 11.5V16c0 1.7 2.2 3 5 3s5-1.3 5-3v-4.5M21 9.5V15',
   language: 'M4 6h9M8.5 4.5V6c0 3.6-2 6.6-5 8.5M6 10.5c1 2.3 2.8 3.9 5 4.5M14 20l3.5-9 3.5 9M15.3 17h4.4',
+  lock: 'M6 10.5h12v9a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 19.5v-9ZM8.5 10.5V7a3.5 3.5 0 1 1 7 0v3.5M12 15v2',
+  user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4.5 21a7.5 7.5 0 0 1 15 0',
 };
 
 export interface IconProps extends SVGProps<SVGSVGElement> {

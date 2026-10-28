@@ -88,7 +88,7 @@ Login/demo ─▶ Início ─▶ Descobrir / Materiais ─▶ [Busca, link ou up
 | --- | --- | --- |
 | **Login** | Entrar rápido | Conta demo em um clique; painel esquerdo explica o valor em 4 pontos. |
 | **Início** | Responder "o que faço agora?" | Meta diária, sequência, cards vencidos e pontos frágeis em primeiro plano; onboarding de 3 passos quando a conta está vazia. |
-| **Descobrir** | Trazer conteúdo sem ter o arquivo | Três abas: acervos científicos (busca com filtro de acesso aberto), gerar por tema (IA) e importar por link. Mostra fonte, ano, licença e se o texto é resumo ou completo antes de importar. |
+| **Descobrir** | Trazer conteúdo sem ter o arquivo | Três abas: acervos científicos (busca com filtro de acesso aberto), gerar por tema (IA) e importar por link. Mostra fonte, ano, licença e se o texto é resumo ou completo antes de importar. **A busca é aberta, sem login** — importar e gerar pedem conta. |
 | **Materiais** | Enviar e ver o que foi lido | Upload por arrastar ou colar texto; atalho para a descoberta; status visível (analisado/gerado/erro); temas detectados como badges. |
 | **Detalhe do material** | Conferir a leitura e gerar | Estrutura do material, temas, condições, questões/gabarito, trechos extraídos e **prévia dos casos** antes de salvar. |
 | **Biblioteca** | Escolher o próximo treino | Filtros por área/dificuldade/status, busca com debounce, "meus" vs. comunidade, ações contextuais (editar, publicar, duplicar, exportar). |
@@ -134,6 +134,7 @@ O aluno escolhe o formato pelo tipo de material que tem. O produto não força u
 
 ### Descoberta de conteúdo
 
+- **Entrada sem atrito**: a busca nos acervos funciona sem conta. O visitante explora, lê resumos e só encontra o login quando decide importar — a barreira aparece depois do valor, não antes.
 - **Acervos científicos abertos**: Europe PMC (artigos e diretrizes), NCBI Bookshelf (capítulos de livros-texto), OpenAlex (metadados + PDF aberto) e PubMed (resumos). Busca agregada em paralelo; se um acervo cair, os outros continuam e a tela informa o que falhou.
 - **Filtro de acesso aberto** e escolha de quais acervos consultar; a própria biblioteca do aluno entra como fonte (útil para regerar casos de um material antigo).
 - **Importar por link**: qualquer URL pública de artigo/capítulo/diretriz, com aviso sobre direitos autorais.
@@ -294,6 +295,7 @@ Com isso, o mesmo motor gera casos de outra profissão sem tocar no núcleo. A i
 | **Material protegido por direitos autorais** | Médio/alto | Uso pessoal por padrão (rascunho); publicação exige ação explícita; aviso nas configurações; na descoberta, só fontes abertas são baixadas, com licença e link de origem gravados no material; roadmap: política de uso e curadoria. |
 | **Acervo externo fora do ar ou lento** | Médio | Busca paralela com timeout, falha isolada por acervo (`statuses[]`), cache de 10 min e mensagem clara quando o servidor não tem internet. |
 | **Importação de link malicioso (SSRF)** | Alto (infra) | Guarda anti-SSRF: apenas http/https públicos, após resolução DNS; limite de 12 MB e timeout. |
+| **Abuso da busca anônima** (servidor como proxy das APIs públicas) | Médio | Limite por visitante (30 buscas/5 min) e teto global, com resposta 429 explicando como entrar; cache de 10 min evita repetir chamadas iguais. |
 | **Sobrecarga de casos gerados** | Médio | Limite por geração, agrupamento por blocos, filtros. |
 | **Qualidade do gabarito de provas antigas** | Médio | Só reutiliza questões com gabarito explícito; mostra a origem. |
 | **Privacidade** | Alto | Sem envio externo por padrão; chave criptografada; dados locais; exportação. Na descoberta, só o termo buscado sai para os acervos públicos. |
