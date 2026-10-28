@@ -91,7 +91,7 @@ npm run test:discovery:live  # testes AO VIVO: consultam Europe PMC, Bookshelf, 
 
 ### Deploy para os estudantes
 
-O app é um processo Node com SQLite em disco: precisa de **container/VM com volume persistente e saída para a internet** (Netlify/Vercel não servem para o backend). Não é preciso migrar nada — Railway, Render e Fly.io rodam este repositório como está:
+O app é um processo Node com SQLite em disco: precisa de **container/VM com volume persistente e saída para a internet** (Netlify/Vercel não servem para o backend). Não é preciso migrar nada — Railway, Render e Fly.io rodam este repositório como está. A **interface** (estática) pode ir para a Netlify com a API em outro host: veja `netlify.toml` e a seção 9 de `docs/DEPLOY.md`:
 
 | Plataforma | Deploy | Custo mínimo (out/2026) |
 | --- | --- | --- |

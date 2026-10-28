@@ -17,7 +17,8 @@
     "test:discovery:live": "tsx scripts/test-discovery-live.ts",
     "db:backup": "node scripts/backup.mjs",
     "build:web": "ng build",
-    "test:web": "node scripts/smoke-web.mjs"
+    "test:web": "node scripts/smoke-web.mjs",
+    "test:netlify": "node scripts/netlify-sim.mjs"
   },
   "dependencies": {
     "@angular/common": "^22.2.3",

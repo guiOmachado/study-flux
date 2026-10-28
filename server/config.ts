@@ -28,6 +28,23 @@ function loadSecret(): string {
 }
 
 export const APP_SECRET = loadSecret();
+
+/**
+ * Interface e API em domínios diferentes (ex.: Netlify + Railway).
+ * `CORS_ORIGIN` lista as origens do cliente, separadas por vírgula, que podem
+ * consumir a API com credenciais. Vazio = mesma origem (padrão).
+ */
+export const CORS_ORIGINS = (process.env.CORS_ORIGIN ?? '')
+  .split(',')
+  .map((value) => value.trim().replace(/\/$/, ''))
+  .filter(Boolean);
+
+/**
+ * Domínio do cookie de sessão quando a API vive em um subdomínio próprio
+ * (ex.: `COOKIE_DOMAIN=.studyflux.app` com a interface em `app.studyflux.app`
+ * e a API em `api.studyflux.app`). Vazio = cookie só do host da API.
+ */
+export const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN?.trim() || undefined;
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 export const MAX_TEXT_CHARS = 600_000;
 

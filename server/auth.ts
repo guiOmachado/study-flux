@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import { COOKIE_SECURE } from './config';
+import { COOKIE_DOMAIN, COOKIE_SECURE } from './config';
 import { get, run, type UserRow } from './db';
 import { newToken, nowIso, parseCookies } from './util';
 
@@ -32,6 +32,7 @@ export function createSession(req: Request, res: Response, userId: number): stri
     sameSite: 'lax',
     secure: cookieIsSecure(req),
     path: '/',
+    ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
     maxAge: SESSION_DAYS * 86_400_000,
   });
   return token;
@@ -40,7 +41,7 @@ export function createSession(req: Request, res: Response, userId: number): stri
 export function destroySession(req: Request, res: Response): void {
   const token = parseCookies(req.headers.cookie)[COOKIE];
   if (token) run('DELETE FROM sessions WHERE token = ?', token);
-  res.clearCookie(COOKIE, { path: '/' });
+  res.clearCookie(COOKIE, { path: '/', ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}) });
 }
 
 export function currentUser(req: Request): UserRow | null {

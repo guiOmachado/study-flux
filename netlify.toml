@@ -1,0 +1,61 @@
+# =============================================================================
+# Netlify — SOMENTE a interface (Angular estático).
+#
+# A API (Express + SQLite + rede de saída para os acervos) continua em outro
+# host: Railway, Render, Fly.io ou uma VPS. Motivo: funções da Netlify não têm
+# disco persistente (SQLite não sobrevive a um deploy) e o runtime síncrono é
+# curto demais para busca nos acervos e geração por IA.
+#
+# Passo obrigatório: trocar `SEU-BACKEND` abaixo pelo domínio da API (sem barra
+# no final). As regras de redirect não interpolam variáveis de ambiente, então
+# esse é o único lugar que precisa ser editado para publicar.
+# =============================================================================
+
+[build]
+  command = "npm ci && npm run build"
+  publish = "web/dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# 1) API: proxy reverso para o backend. O navegador fala só com o domínio da
+#    Netlify, então o cookie `sf_session` continua sendo de primeira parte.
+#    Precisa vir ANTES do fallback da SPA (a Netlify aplica a primeira regra que
+#    casa, na ordem do arquivo).
+[[redirects]]
+  from = "/api/*"
+  to = "https://SEU-BACKEND/api/:splat"
+  status = 200
+  force = true
+
+# 2) SPA: qualquer rota do Angular (/casos, /descobrir, /casos/2…) devolve o
+#    index.html com 200, em vez de 404.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# 3) Cabeçalhos de segurança para os arquivos estáticos.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "same-origin"
+
+# Os bundles do Angular têm hash no nome: cache longo é seguro.
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# O index.html precisa ser sempre revalidado, senão o cliente fica preso numa
+# versão antiga apontando para bundles que já não existem.
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"

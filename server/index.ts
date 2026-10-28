@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
-import { DATA_DIR, PORT, SEED_DEMO, TRUST_PROXY, WEB_DIST } from './config';
+import { CORS_ORIGINS, DATA_DIR, PORT, SEED_DEMO, TRUST_PROXY, WEB_DIST } from './config';
 import { attachUser } from './auth';
 import { authRouter } from './routes/auth';
 import { sourcesRouter } from './routes/sources';
@@ -20,6 +20,32 @@ app.disable('x-powered-by');
 // Em preview/PaaS o app roda atrás de proxy: confiar em 1 salto permite limitar busca anônima
 // por visitante e detectar HTTPS. Em rede local sem proxy, defina TRUST_PROXY=0.
 app.set('trust proxy', TRUST_PROXY);
+
+/**
+ * CORS opcional: só entra em ação com `CORS_ORIGIN` configurado (interface em
+ * outro domínio, ex.: Netlify). Mesma origem continua sem cabeçalhos extras.
+ * O cookie de sessão é enviado com `Access-Control-Allow-Credentials`.
+ */
+if (CORS_ORIGINS.length > 0) {
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    const allowed = origin && CORS_ORIGINS.includes(origin);
+    if (allowed) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', req.headers['access-control-request-headers'] ?? 'content-type');
+      res.setHeader('Access-Control-Max-Age', '600');
+    }
+    if (req.method === 'OPTIONS' && allowed) {
+      res.status(204).end();
+      return;
+    }
+    next();
+  });
+}
+
 app.use(express.json({ limit: '3mb' }));
 app.use(express.urlencoded({ extended: true, limit: '3mb' }));
 app.use(attachUser);
@@ -53,6 +79,9 @@ if (fs.existsSync(WEB_DIST)) {
   app.use(express.static(WEB_DIST, { index: false }));
   app.use((req, res, next) => {
     if (req.method !== 'GET' || !req.accepts('html') || req.path.startsWith('/api')) return next();
+    // Arquivo com extensão que não existe (ex.: /casos/main-abc.js) é 404, não index.html:
+    // devolver HTML para um <script> quebra a página em silêncio.
+    if (/\.[a-z0-9]{2,5}$/i.test(req.path)) return next();
     res.sendFile(path.join(WEB_DIST, 'index.html'));
   });
 }

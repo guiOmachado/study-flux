@@ -1,6 +1,8 @@
 <!doctype html>
 <html lang="pt-BR">
   <head>
+    <!-- Base das rotas: sem isso, um deep link (/casos/2) resolveria os assets e o router a partir do caminho errado. -->
+    <base href="/" />
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0f766e" />
@@ -9,6 +11,11 @@
     <title>Study Flux — do material ao caso clínico</title>
   </head>
   <body>
+    <!-- Interface e API em domínios diferentes? Use window.__SF_API__ (docs/DEPLOY.md §9).
+         Vazio = mesma origem, o padrão de quem serve tudo por este Node. -->
+    <script>
+      window.__SF_API__ = '';
+    </script>
     <sf-root></sf-root>
     <!-- Mostrado até o Angular assumir; removido no bootstrap. -->
     <div id="boot" class="loading-screen" style="position: fixed; inset: 0; background: var(--surface, #f6f8f8)">

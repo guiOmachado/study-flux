@@ -126,13 +126,27 @@ export interface DiscoveryProvidersDTO {
   note: string;
 }
 
+declare global {
+  interface Window {
+    /**
+     * Origem da API quando interface e servidor ficam em domínios diferentes
+     * (ex.: interface na Netlify, API em `https://api.exemplo.com`). Vazio ou
+     * ausente = mesma origem, que é o caso de servir os dois pelo mesmo Node.
+     */
+    __SF_API__?: string;
+  }
+}
+
+/** Prefixo de todas as chamadas — ver `window.__SF_API__`. */
+export const API_BASE = (typeof window !== 'undefined' ? window.__SF_API__ : undefined)?.replace(/\/$/, '') ?? '';
+
 @Injectable({ providedIn: 'root' })
 export class Api {
   private readonly http = inject(HttpClient);
 
   private async request<T>(method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string, body?: unknown): Promise<T> {
     try {
-      return await firstValueFrom(this.http.request<T>(method, `/api${path}`, { body, withCredentials: true }));
+      return await firstValueFrom(this.http.request<T>(method, `${API_BASE}/api${path}`, { body, withCredentials: true }));
     } catch (error) {
       throw toApiError(error);
     }
@@ -178,7 +192,7 @@ export class Api {
     duplicate: (id: number) => this.request<{ case: CaseDetail }>('POST', `/cases/${id}/duplicate`),
     remove: (id: number) => this.request<{ ok: true }>('DELETE', `/cases/${id}`),
     importCase: (payload: unknown) => this.request<{ case: CaseDetail }>('POST', '/cases/import', payload),
-    exportUrl: (id: number) => `/api/cases/${id}/export`,
+    exportUrl: (id: number) => `${API_BASE}/api/cases/${id}/export`,
   };
 
   readonly generate = {
@@ -238,7 +252,7 @@ export class Api {
 
   readonly stats = {
     get: () => this.request<StatsDTO>('GET', '/stats'),
-    exportUrl: () => '/api/stats/export.csv',
+    exportUrl: () => `${API_BASE}/api/stats/export.csv`,
   };
 
   readonly discovery = {

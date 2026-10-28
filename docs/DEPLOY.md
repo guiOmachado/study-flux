@@ -16,7 +16,9 @@ O Study Flux é **um processo Node que serve a interface e a API na mesma porta*
 | Upload de até 25 MB | PDFs de provas e capítulos |
 | Tempo de resposta generoso | Extração de PDF + análise + geração de casos (e IA, quando configurada) |
 
-**Conclusão:** container (Docker) ou máquina virtual com volume. **Netlify/Vercel não servem** para este backend — são CDN + funções efêmeras, com disco somente leitura, payload de 6 MB e timeout curto. O front até poderia ir para lá, mas o ganho é zero quando comparado a servir tudo pelo mesmo processo.
+**Conclusão:** container (Docker) ou máquina virtual com volume. **Netlify/Vercel não servem para o backend** — são CDN + funções efêmeras, com disco somente leitura, payload de 6 MB e timeout curto.
+
+A **interface**, porém, é estática e pode ficar na Netlify — desde que a API continue em um host com disco. Isso separa o deploy em dois lugares e adiciona um proxy no caminho de cada chamada; só vale a pena se você quiser o domínio/`deploy preview`/rollback da Netlify. Como fazer, com os limites na mesa: **seção 9**.
 
 Se o objetivo é um link público para os alunos **sem reescrever nada**, use uma plataforma que roda o contêiner com disco (Railway, Render, Fly.io) — o código já está preparado. Detalhes de custo na seção 2.
 
@@ -28,6 +30,7 @@ docker-compose.yml     execução local/VPS com volume persistente
 render.yaml            blueprint do Render (com disco)
 railway.json           detecção do Dockerfile + healthcheck no Railway
 fly.toml               configuração do Fly.io (com volume)
+netlify.toml           interface na Netlify + proxy da API (seção 9)
 scripts/backup.mjs     backup consistente do SQLite (npm run db:backup)
 ```
 
@@ -71,6 +74,8 @@ Preços de referência (outubro/2026, sem impostos):
 | `COOKIE_SECURE` | `auto` | `auto` marca o cookie como `Secure` quando a requisição chega por HTTPS. `always` força; `never` só para depuração. |
 | `TRUST_PROXY` | `1` | Confia em 1 salto de proxy (Caddy, Render, Fly, Cloudflare) para IP real e HTTPS. Use `0` sem proxy. |
 | `OPENALEX_MAILTO` | — | E-mail de contato enviado ao OpenAlex (boa prática de uso da API). |
+| `CORS_ORIGIN` | — | Só quando a interface fica em outro domínio (ex.: Netlify): origens liberadas a chamar a API, separadas por vírgula. Vazio = mesma origem, sem CORS. |
+| `COOKIE_DOMAIN` | — | Só no cenário de subdomínio (interface em `app.dominio.com`, API em `api.dominio.com`): `.dominio.com` faz o cookie valer para os dois. Vazio = cookie restrito ao host da API. |
 
 Com `SEED_DEMO=0`, cada estudante cria a própria conta em `/login` → *Criar agora*. A busca em acervos continua **aberta sem login** (com limite de 30 buscas por visitante a cada 5 minutos).
 
@@ -218,7 +223,115 @@ cloudflared tunnel run --url http://localhost:8787 study-flux
 
 ---
 
-## 9. Checklist depois do deploy
+## 9. Interface na Netlify (API em outro host)
+
+Dá para usar a Netlify — **só para a interface**. O backend continua em um host com disco (seções 4 a 7). O `netlify.toml` deste repositório já está pronto.
+
+```
+navegador do aluno
+   │  https://study-flux.netlify.app/casos      → HTML/JS/CSS estáticos (CDN)
+   └─ https://study-flux.netlify.app/api/...    → regra de proxy no netlify.toml
+                     │
+                     ▼
+        https://SEU-BACKEND/api/...            → Node + SQLite, com volume e saída aberta
+```
+
+**Por que a API não pode morar na Netlify:** as funções têm disco efêmero (o SQLite sumiria a cada deploy), execução síncrona de 10 s (30 s com liberação) e payload de 6 MB. O Study Flux recebe PDFs de até 25 MB, faz busca em cinco acervos externos e, com IA configurada, espera até 150 s por uma geração. Nada disso cabe — e não é limitação do código.
+
+**Custo (contas criadas depois de 04/09/2025):** o plano gratuito virou **300 créditos por mês, com teto rígido** — ao zerar, o site é pausado até o mês seguinte. As taxas de 2026: 20 créditos por GB de banda (≈ 15 GB), 2 créditos por 10 mil requisições, 15 créditos por deploy de produção, 10 créditos por GB-hora de compute. Uma turma pequena (≈ 5 GB e 3 deploys no mês) consome ~150 créditos. Passando disso: Personal, US$ 9/mês, 1 TB de banda.
+
+### 9.1 Opção A — proxy pela Netlify (mais simples, mesma origem)
+
+O navegador só conversa com o domínio da Netlify; ela repassa `/api/*` para o backend. O cookie `sf_session` continua sendo **de primeira parte**, então login, sessão de 30 dias e uploads funcionam sem nenhuma mudança de código.
+
+1. Publique a API primeiro (seção 5, 6 ou 7) e guarde a URL, por exemplo `https://study-flux.up.railway.app`. Lá, mantenha `SEED_DEMO=0`.
+2. **Ajuste o único ponto que precisa ser editado** em `netlify.toml`:
+
+```toml
+[[redirects]]
+  from = "/api/*"
+  to = "https://study-flux.up.railway.app/api/:splat"   # <- troque aqui
+  status = 200
+  force = true
+```
+
+3. Na Netlify: *Add new site → Import an existing project → GitHub* e escolha este repositório. Build e publish vêm do `netlify.toml` (`npm ci && npm run build`, `web/dist`, Node 22) — não precisa preencher nada na interface, nem variáveis de ambiente.
+4. Abra o site e confira `https://SEU-SITE.netlify.app/api/health` → deve devolver o JSON da sua API. Se devolver o HTML do app, a regra de proxy não foi aplicada (veja 9.3).
+
+Dá para testar a topologia inteira **antes** de criar o site, com um simulador que aplica as regras do `netlify.toml` (estático + proxy de `/api/*` + fallback da SPA) na sua máquina:
+
+```bash
+npm run build
+npm start                      # API na 5173 (terminal 1)
+npm run test:netlify -- 5180 http://127.0.0.1:5173   # "Netlify" na 5180 (terminal 2)
+SMOKE_BASE=http://127.0.0.1:5180 npm run test:web    # a suíte da interface, pelo proxy
+```
+
+**Limite que aparece na prática: 26 segundos por requisição.** A Netlify corta o proxy nesse prazo, e algumas rotas do Study Flux passam disso quando a rede está ruim:
+
+| Operação | Tempo típico | Passa dos 26 s? |
+| --- | --- | --- |
+| Listar casos, treinar, revisar (SRS), estatísticas | < 1 s | não |
+| Login, cadastro, upload de PDF de prova | 1–5 s | não |
+| Busca nos acervos (`/api/discovery/search`) | 3–20 s (5 provedores em paralelo, cada um até 30 s) | **às vezes** |
+| Geração de casos por IA (`/api/generate/*`) | 15–90 s | **sim, com frequência** |
+| Importação de link/PDF com análise + IA | 10–60 s | às vezes |
+
+Quando estoura, o aluno vê um erro de rede (HTTP 504) mesmo com o backend terminando o trabalho. Se o uso principal for a geração por IA, use a opção 9.2.
+
+### 9.2 Opção B — API em subdomínio (sem o corte de 26 s)
+
+Interface em `app.seudominio.com` (Netlify) e API em `api.seudominio.com` (Railway et al.). O navegador chama a API direto, então não há proxy no meio e nenhum limite de tempo.
+
+Isso exige **domínio próprio**: `*.netlify.app` e `*.up.railway.app` são *sites* diferentes para o navegador, e aí o cookie viraria terceira parte — bloqueado por padrão no Safari e no Chrome. Já `app.seudominio.com` e `api.seudominio.com` compartilham o domínio registrável, e o cookie `SameSite=Lax` continua válido.
+
+No backend (Railway/Render/Fly/VPS):
+
+```bash
+CORS_ORIGIN=https://app.seudominio.com
+COOKIE_DOMAIN=.seudominio.com
+COOKIE_SECURE=always
+```
+
+No frontend, uma linha em `web-ng/src/index.html` (bloco que já existe no `<body>`):
+
+```html
+<script>
+  window.__SF_API__ = 'https://api.seudominio.com';
+</script>
+```
+
+Sem barra no final. Vazio é o padrão e significa “mesma origem” — nada muda para quem serve tudo pelo mesmo Node.
+
+### 9.3 Problemas comuns
+
+| Sintoma | Causa provável | Correção |
+| --- | --- | --- |
+| `/api/health` devolve o HTML do app | regra `/api/*` ausente, depois do `/*`, ou sem `force = true` | a regra da API precisa vir **antes** do fallback da SPA no `netlify.toml` |
+| Rotas internas dão 404 ao recarregar | falta o fallback `/* → /index.html` com status 200 | já incluído no arquivo; confira se ele não foi apagado |
+| Login “funciona” mas a sessão não persiste | proxy devolvendo `Set-Cookie` com `Domain` do backend, ou build servido por `http://` | use a opção A sem `COOKIE_DOMAIN`; em produção o site é sempre `https` |
+| `504` ao gerar casos | corte de 26 s do proxy | opção B (subdomínio), ou gere casos a partir do próprio domínio da API |
+| `CORS` bloqueado no console | origem do front fora de `CORS_ORIGIN` (só na opção B) | inclua a origem exata, com `https://` e sem barra final |
+| Build falha com “Node version” | a Netlify usou um Node antigo | o `NODE_VERSION = "22"` está no `netlify.toml`; se você criou o site antes dele, rode *Clear cache and deploy site* |
+| Site pausado no meio do mês | créditos gratuitos esgotados | *Billing → upgrade* ou reduza deploys de produção |
+
+**Cache:** o `netlify.toml` marca os bundles com hash como imutáveis (1 ano) e o `index.html` como `must-revalidate`, então um deploy novo aparece no primeiro recarregamento — sem aluno preso em versão antiga.
+
+### 9.4 Vale a pena?
+
+| | Tudo num host só (seções 4–7) | Interface na Netlify |
+| --- | --- | --- |
+| Passos de deploy | 1 | 2 (API + front) |
+| Domínio único, sem CORS | sim | sim (opção A) |
+| Geração por IA longa | sempre funciona | só na opção B |
+| Rollback / preview por branch | o do host | melhor da categoria |
+| Custo | 1 host | 1 host + Netlify (grátis até ~15 GB) |
+
+Para uma turma de medicina usando casos prontos e revisão, a **opção A entrega o que o aluno precisa** com um deploy a mais. Para criar casos por IA com frequência, vá de **opção B** — ou simplesmente mantenha tudo no mesmo host.
+
+---
+
+## 10. Checklist depois do deploy
 
 ```bash
 # 1. Servidor vivo
@@ -242,7 +355,7 @@ Na interface:
 
 ---
 
-## 10. Backup e restauração
+## 11. Backup e restauração
 
 `npm run db:backup` usa `VACUUM INTO`: gera uma cópia íntegra **com o servidor rodando** (copiar o `.db` na mão pode capturar um estado inconsistente do WAL).
 
@@ -272,7 +385,7 @@ No Render/Fly, além do `db:backup`, use o snapshot do disco do provedor.
 
 ---
 
-## 11. Segurança e uso com alunos
+## 12. Segurança e uso com alunos
 
 - **HTTPS é obrigatório** em produção: sem ele o cookie de sessão viaja em claro (`COOKIE_SECURE=auto` só marca `Secure` quando a conexão é HTTPS).
 - **`SEED_DEMO=0`** evita que todos entrem na mesma conta de demonstração.
@@ -284,7 +397,7 @@ No Render/Fly, além do `db:backup`, use o snapshot do disco do provedor.
 
 ---
 
-## 12. Quando migrar de SQLite
+## 13. Quando migrar de SQLite
 
 | Sinal | Ação |
 | --- | --- |
@@ -296,7 +409,7 @@ No Render/Fly, além do `db:backup`, use o snapshot do disco do provedor.
 
 ---
 
-## 13. Problemas comuns
+## 14. Problemas comuns
 
 | Sintoma | Causa provável | Solução |
 | --- | --- | --- |
