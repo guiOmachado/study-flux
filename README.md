@@ -1,1 +1,154 @@
-# study-flux
+# Study Flux
+
+> **Do material de estudo ao caso clínico.** Plataforma de treino para estudantes de medicina em período de provas: envie uma prova antiga, um capítulo de livro ou um resumo, e transforme o conteúdo em casos clínicos, simulados e revisão espaçada.
+
+O projeto nasce focado em medicina, mas foi estruturado para crescer para outras profissões (ver [expansão](docs/PRODUTO.md#10-expansão-para-outras-profissões)).
+
+---
+
+## O problema
+
+No período de provas, o estudante de medicina precisa conciliar três coisas que raramente conversam:
+
+1. **Volume**: pilhas de capítulos, resumos e provas antigas.
+2. **Tempo**: semanas até a prova, com dezenas de temas.
+3. **Forma de estudar**: reler e grifar dá sensação de progresso, mas não treina recuperação ativa — o que a prova cobra.
+
+As plataformas de questões existentes resolvem parte disso, mas não aproveitam **o material que o aluno já tem** (o capítulo do professor, a prova da faculdade, o resumo do grupo). E ferramentas de IA genéricas geram perguntas soltas, sem progressão clínica, sem rastrear o que foi errado e sem garantir fidelidade ao conteúdo.
+
+**Study Flux fecha esse ciclo**: material → casos → treino → revisão → lacunas identificadas.
+
+---
+
+## O fluxo
+
+```
+        ┌──────────────┐      ┌─────────────────┐      ┌──────────────┐      ┌──────────────┐
+        │   MATERIAL   │ ───▶ │     ANÁLISE     │ ───▶ │    CASOS     │ ───▶ │    TREINO    │
+        │ PDF / DOCX / │      │ temas, seções,  │      │ clínicos ou  │      │ feedback,    │
+        │ texto colado │      │ questões e      │      │ blocos de    │      │ simulado,    │
+        │ / prova      │      │ gabarito        │      │ fixação      │      │ revisão      │
+        └──────────────┘      └─────────────────┘      └──────────────┘      └──────┬───────┘
+                                                                                     │
+                                              ┌──────────────────────────────────────┘
+                                              ▼
+                                     ┌──────────────────┐
+                                     │   PROGRESSO +    │
+                                     │ revisão espaçada │
+                                     │ e temas frágeis  │
+                                     └──────────────────┘
+```
+
+---
+
+## O que já funciona
+
+| Área | Recursos |
+| --- | --- |
+| **Materiais** | Upload de PDF (com camada de texto), DOCX, TXT e MD; colar texto; análise automática de seções, temas, condições e questões com gabarito; prévia do que será gerado. |
+| **Geração de casos** | **Modo estruturado (sem IA)**: extrai questões de provas antigas com gabarito e monta perguntas de completar (cloze) fiéis ao texto. **Modo IA (opcional)**: casos clínicos completos com paciente, exame físico, exames e perguntas em progressão. **Automático**: usa IA quando disponível. |
+| **Biblioteca** | Filtros por área, dificuldade, status e busca; publicar/despublicar; duplicar (inclusive casos da comunidade); exportar/importar JSON; editor manual completo. |
+| **Treino** | Caso com prontuário sempre visível, feedback imediato com justificativa e trecho da fonte, atalhos de teclado, resumo final com revisão das respostas. |
+| **Simulado** | Sequência de casos por área, sem correção durante o percurso, com pontuação por caso e tempo total. |
+| **Revisão espaçada** | Cards criados automaticamente a partir dos erros, algoritmo SM-2 (mesma família do Anki), agenda de vencimento e revisão por autopercepção. |
+| **Progresso** | Acerto por área e por tema, pontos fortes e frágeis, constância de 14 dias, histórico detalhado, exportação CSV. |
+| **Conta e privacidade** | Sessões com cookie httpOnly, senha com scrypt, chave de IA criptografada (AES-256-GCM), banco local SQLite. |
+| **Demonstração** | Conta demo com 7 casos autorais completos, 2 materiais (resumo e prova com gabarito), casos gerados e histórico de estudo. |
+
+---
+
+## Como rodar
+
+Pré-requisitos: **Node.js 22+** (usa `node:sqlite` nativo) e npm.
+
+```bash
+npm install
+npm run dev
+```
+
+- Interface: <http://localhost:5173>
+- API: <http://localhost:8787> (a interface faz proxy de `/api`)
+- Conta demo: **demo@studyflux.app** / **estudar123** — ou clique em *Entrar como demo* na tela de login.
+
+Outros comandos:
+
+```bash
+npm run seed       # cria/atualiza a conta demo e o conteúdo de demonstração
+npm run reset      # apaga o banco local (data/) para começar do zero
+npm run typecheck  # TypeScript em todo o projeto
+npm run build      # build da interface em web/dist
+npm start          # serve API + interface compilada em http://localhost:8787
+```
+
+### Variáveis de ambiente (opcionais)
+
+| Variável | Padrão | Descrição |
+| --- | --- | --- |
+| `PORT` | `8787` | Porta da API/servidor de produção. |
+| `DATA_DIR` | `./data` | Onde ficam o banco SQLite e o segredo de sessão. |
+| `APP_SECRET` | gerado em `data/app.secret` | Segredo para assinar sessões e criptografar a chave de IA. |
+
+> O banco é criado e semeado automaticamente no primeiro start. `data/` e `web/dist/` estão no `.gitignore`.
+
+---
+
+## IA é opcional
+
+Sem nenhuma chave de API, a plataforma já é útil: o **modo estruturado** gera perguntas a partir do próprio texto do material — questões de provas antigas com gabarito são reaproveitadas na íntegra, e capítulos geram perguntas de completar com alternativas do mesmo domínio (fármacos, exames, condutas, valores numéricos). Toda resposta cita o trecho original.
+
+Com IA, o material vira **caso clínico narrativo** (paciente, anamnese, exame físico, exames, perguntas em progressão, justificativas). A configuração fica em **Configurações → Geração por IA**:
+
+- Provedores: OpenAI, Anthropic ou qualquer API compatível com OpenAI (Groq, OpenRouter, Together, Ollama local).
+- A chave é criptografada no banco e nunca retorna para a interface.
+- Há botão de **testar conexão** e de **listar modelos** do provedor.
+
+⚠️ Ao gerar com IA, apenas o texto do material é enviado ao provedor escolhido. Sem IA, nada sai da máquina.
+
+---
+
+## Arquitetura em uma tela
+
+| Camada | Tecnologia | Por quê |
+| --- | --- | --- |
+| Interface | React 19 + React Router 7 + CSS próprio | App rápido, sem dependência de kit visual, com identidade própria. |
+| API | Express 5 + TypeScript (tsx) | Simples de rodar, tipada ponta a ponta com os tipos compartilhados. |
+| Banco | SQLite nativo do Node (`node:sqlite`) | Zero configuração, arquivo único, fácil de fazer backup e de migrar para Postgres depois. |
+| Extração | `pdfjs-dist` (PDF), `mammoth` (DOCX) | Boa extração local, sem serviço externo. |
+| Geração | Motor próprio (regras + léxico) e cliente LLM opcional | Funciona offline; IA é um acelerador, não uma dependência. |
+| Revisão | SM-2 | Comprovado, previsível e explicável ao aluno. |
+
+```
+server/
+  ingestion/    extração de PDF/DOCX, análise de seções, temas e gabaritos, léxico médico
+  generation/   gerador estruturado (cloze + provas), cliente de IA e sanitização
+  routes/       auth, sources, cases, generate, attempts, srs, stats, settings
+  seed/         conta demo, casos autorais e materiais de exemplo
+shared/types.ts tipos usados pelo servidor e pela interface
+web/src/        páginas, componentes, cliente de API e design system
+docs/           análise de produto e arquitetura
+```
+
+Detalhes em [docs/ARQUITETURA.md](docs/ARQUITETURA.md).
+
+---
+
+## Limitações conhecidas (honestas)
+
+- **PDF escaneado sem camada de texto** não é lido: não há OCR nesta versão. A plataforma avisa e sugere colar o texto.
+- O modo estruturado funciona melhor com material **com subtítulos** (Definição, Quadro clínico, Diagnóstico, Tratamento) ou com **questões + gabarito**. Texto corrido gera menos perguntas.
+- A geração por IA depende da qualidade do provedor escolhido e **deve ser revisada** antes de publicar — o app mostra as perguntas e o trecho-fonte para conferência.
+- Comunidade é aberta a casos publicados entre usuários; não há moderação nem curadoria editorial nesta versão.
+- Um único processo/servidor: sem fila assíncrona para PDFs muito grandes (limite de 25 MB e extração síncrona).
+- Não substitui material oficial nem orientação clínica: é ferramenta de estudo.
+
+---
+
+## Documentação
+
+- **[Análise de produto](docs/PRODUTO.md)** — problema, usuários, jornada, decisões, métricas, roadmap e expansão para outras profissões.
+- **[Arquitetura](docs/ARQUITETURA.md)** — modelo de dados, pipeline de geração, API, segurança e operação.
+- **[Guia rápido de uso](docs/COMO-USAR.md)** — passo a passo do primeiro material ao primeiro simulado.
+
+---
+
+Feito para estudar com casos — e não apenas reler o capítulo.
