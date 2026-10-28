@@ -80,12 +80,25 @@ Outros comandos:
 ```bash
 npm run seed       # cria/atualiza a conta demo e o conteúdo de demonstração
 npm run reset      # apaga o banco local (data/) para começar do zero
+npm run db:backup   # cópia consistente do SQLite (VACUUM INTO) em data/backups
 npm run typecheck  # TypeScript em todo o projeto
 npm run build      # build da interface em web/dist
 npm start          # serve API + interface compilada em http://localhost:8787
 npm run test:discovery       # testes dos acervos com fixtures (offline, sem rede)
 npm run test:discovery:live  # testes AO VIVO: consultam Europe PMC, Bookshelf, OpenAlex e PubMed de verdade
 ```
+
+### Deploy para os estudantes
+
+O app é um processo Node com SQLite em disco: precisa de **container/VM com volume persistente e saída para a internet** (Netlify/Vercel não servem para o backend). O repositório já tem `Dockerfile`, `docker-compose.yml`, `render.yaml` e `fly.toml`.
+
+```bash
+docker compose up -d --build   # http://localhost:8787, dados no volume studyflux-data
+```
+
+Passo a passo completo (VPS com HTTPS, Render, Fly.io e túnel do Cloudflare para testar hoje): **[docs/DEPLOY.md](docs/DEPLOY.md)**.
+
+Para uso público, rode com `SEED_DEMO=0` (sem conta demo compartilhada) e `APP_SECRET` fixo.
 
 ### Variáveis de ambiente (opcionais)
 
@@ -96,6 +109,8 @@ npm run test:discovery:live  # testes AO VIVO: consultam Europe PMC, Bookshelf, 
 | `APP_SECRET` | gerado em `data/app.secret` | Segredo para assinar sessões e criptografar a chave de IA. |
 | `OPENALEX_MAILTO` | — | E-mail de contato enviado à API do OpenAlex (boa prática de uso). |
 | `TRUST_PROXY` | `1` | Confia em 1 salto de proxy para limitar a busca anônima por visitante. Use `0` em rede local sem proxy. |
+| `SEED_DEMO` | `1` | `0` desativa a conta demo e o botão “Entrar como demo” (recomendado em deploy público). |
+| `COOKIE_SECURE` | `auto` | Cookie de sessão com `Secure` quando a conexão é HTTPS. |
 
 > O banco é criado e semeado automaticamente no primeiro start. `data/` e `web/dist/` estão no `.gitignore`.
 
@@ -160,6 +175,7 @@ Detalhes em [docs/ARQUITETURA.md](docs/ARQUITETURA.md).
 - **[Análise de produto](docs/PRODUTO.md)** — problema, usuários, jornada, decisões, métricas, roadmap e expansão para outras profissões.
 - **[Arquitetura](docs/ARQUITETURA.md)** — modelo de dados, pipeline de geração, API, segurança e operação.
 - **[Guia rápido de uso](docs/COMO-USAR.md)** — passo a passo do primeiro material ao primeiro simulado.
+- **[Deploy](docs/DEPLOY.md)** — colocar no ar para os estudantes: Docker, Render, Fly.io, VPS com HTTPS e backups.
 
 ---
 

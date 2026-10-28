@@ -79,7 +79,7 @@ npm run seed
 npm run reset
 ```
 
-Variáveis: `PORT`, `DATA_DIR`, `APP_SECRET`, `OPENALEX_MAILTO`, `TRUST_PROXY` (ver README). O banco e a conta demo são criados no primeiro start (`ensureSeeded`).
+Variáveis: `PORT`, `DATA_DIR`, `APP_SECRET`, `OPENALEX_MAILTO`, `TRUST_PROXY`, `SEED_DEMO`, `COOKIE_SECURE` (ver README e [DEPLOY.md](DEPLOY.md)). O banco e a conta demo são criados no primeiro start (`ensureSeeded`).
 
 ---
 
@@ -392,7 +392,7 @@ Erros retornam `{ "error": "mensagem em português" }` com status apropriado (40
 ## 12. Segurança e privacidade
 
 - **Senhas**: `scrypt` com salt aleatório de 16 bytes; comparação com `timingSafeEqual`.
-- **Sessões**: token de 32 bytes em cookie `httpOnly`, `SameSite=Lax`, expiração de 30 dias; sessão apagada no logout.
+- **Sessões**: token de 32 bytes em cookie `httpOnly`, `SameSite=Lax`, expiração de 30 dias; sessão apagada no logout. Em HTTPS o cookie recebe `Secure` (automático atrás de proxy confiável, ou forçado com `COOKIE_SECURE=always`).
 - **Força bruta**: bloqueio temporário por e-mail após 8 falhas (5 min) — em memória, suficiente para instância única.
 - **Chave de IA**: cifrada com AES-256-GCM; chave derivada de `APP_SECRET`; nunca devolvida pela API (`hasKey` booleano).
 - **Autorização**: todo recurso verificado por `user_id`; casos publicados legíveis por outros usuários; edição restrita ao autor.
@@ -419,6 +419,7 @@ Erros retornam `{ "error": "mensagem em português" }` com status apropriado (40
 | `npm run reset` | Remove `data/` (pede confirmação) para recriar do zero. |
 | `npm run typecheck` | TypeScript em servidor, cliente e scripts. |
 | `npm run test:discovery` | Testes dos acervos, do parser externo e da guarda anti-SSRF (offline). |
+| `npm run db:backup` | Cópia íntegra do SQLite (`VACUUM INTO`) com rotação; funciona com o servidor rodando. |
 | `npm run test:discovery:live` | Mesmo caminho, mas contra as APIs reais (precisa de internet). `--probe` só mede conectividade. |
 | `npm run typecheck` | Checagem TypeScript. |
 
@@ -451,7 +452,31 @@ Com WAL ativo, prefira parar o servidor ou usar a API de backup do SQLite antes 
 
 ---
 
-## 14. Próximos passos técnicos
+## 14. Deploy
+
+O app é **um processo de longa duração com SQLite em disco**. Isso define o alvo: container/VM com volume persistente e egress livre — não funções serverless.
+
+| Peça | Arquivo | Observação |
+| --- | --- | --- |
+| Imagem de produção | `Dockerfile` | Multi-stage (`npm ci` + `vite build` → runtime com `npm ci --omit=dev`), usuário `node`, `VOLUME /data`, `HEALTHCHECK` em `/api/health`. |
+| Execução local/VPS | `docker-compose.yml` | Volume `studyflux-data` em `/data`, variáveis com padrões seguros. |
+| Render | `render.yaml` | Blueprint com disco de 1 GB em `/data`, `APP_SECRET` gerado, `SEED_DEMO=0`. |
+| Fly.io | `fly.toml` | Volume `studyflux_data`, `force_https`, região `gru`, **uma máquina só**. |
+| Backup | `scripts/backup.mjs` | `VACUUM INTO` com o servidor rodando + rotação (`BACKUP_KEEP`). |
+
+**Decisões de produção embutidas no código**
+
+- `tsx` é dependência de **runtime** (não dev): `npm start` executa TypeScript direto, sem etapa de compilação do servidor — o que também preserva imports relativos de `shared/types`.
+- `COOKIE_SECURE=auto` marca o cookie como `Secure` quando `req.secure` ou `X-Forwarded-Proto: https`; precisa de `TRUST_PROXY` correto para funcionar atrás de proxy.
+- `SEED_DEMO=0` desliga o seed da conta demo **e** o `POST /api/auth/demo` (403), e o `GET /api/health` passa a devolver `demo: false` para a tela de login esconder o botão.
+- `APP_SECRET` por variável de ambiente evita depender de `DATA_DIR/app.secret` (que continua sendo o padrão local).
+- **Instância única por design**: SQLite single-writer, caches de descoberta e limite de busca anônima vivem em memória. Escalar horizontalmente exige Postgres + cache compartilhado.
+
+Passo a passo operacional: [DEPLOY.md](DEPLOY.md).
+
+---
+
+## 15. Próximos passos técnicos
 
 1. **OCR** (Tesseract local via `tesseract.js` ou serviço) com fila assíncrona e status no material.
 2. **Processamento em background** para PDFs grandes (hoje síncrono) — tabela `jobs` + worker.
@@ -466,7 +491,7 @@ Com WAL ativo, prefira parar o servidor ou usar a API de backup do SQLite antes 
 
 ---
 
-## 15. Arquivos-chave para começar a mexer
+## 16. Arquivos-chave para começar a mexer
 
 | Quero… | Vá para |
 | --- | --- |
@@ -482,3 +507,5 @@ Com WAL ativo, prefira parar o servidor ou usar a API de backup do SQLite antes 
 | Adicionar uma rota | `server/routes/*` + registrar em `server/index.ts` |
 | Mudar o algoritmo de revisão | `server/srs.ts` |
 | Ajustar conteúdo demo | `server/seed/*` |
+| Publicar / hospedar | `Dockerfile`, `docker-compose.yml`, `render.yaml`, `fly.toml`, `docs/DEPLOY.md` |
+| Fazer backup do banco | `scripts/backup.mjs` |

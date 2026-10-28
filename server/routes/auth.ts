@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { get, run } from '../db';
 import type { UserRow } from '../db';
 import { createSession, destroySession, publicUser } from '../auth';
+import { SEED_DEMO } from '../config';
 import { hashPassword, nowIso, verifyPassword } from '../util';
 import { ensureDemoUser } from '../seed/demoUser';
 
@@ -47,7 +48,7 @@ authRouter.post('/register', (req, res) => {
     nowIso(),
   );
   const user = get<UserRow>('SELECT * FROM users WHERE id = ?', Number(result.lastInsertRowid))!;
-  createSession(res, user.id);
+  createSession(req, res, user.id);
   return res.status(201).json({ user: publicUser(user) });
 });
 
@@ -62,13 +63,16 @@ authRouter.post('/login', (req, res) => {
     return res.status(401).json({ error: 'E-mail ou senha incorretos.' });
   }
   failures.delete(email);
-  createSession(res, user.id);
+  createSession(req, res, user.id);
   return res.json({ user: publicUser(user) });
 });
 
-authRouter.post('/demo', (_req, res) => {
+authRouter.post('/demo', (req, res) => {
+  if (!SEED_DEMO) {
+    return res.status(403).json({ error: 'A conta demo está desativada neste servidor. Crie a sua conta.' });
+  }
   const user = ensureDemoUser();
-  createSession(res, user.id);
+  createSession(req, res, user.id);
   return res.json({ user: publicUser(user) });
 });
 

@@ -20,6 +20,15 @@ export class ApiError extends Error {
   }
 }
 
+export interface HealthDTO {
+  ok: boolean;
+  name: string;
+  version: string;
+  time: string;
+  /** false quando o servidor roda com SEED_DEMO=0 (deploy público). */
+  demo: boolean;
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
   if (options.body && !(options.body instanceof FormData) && !headers.has('content-type')) {
@@ -131,6 +140,7 @@ export interface AnswerFeedback {
 }
 
 export const api = {
+  health: () => request<HealthDTO>('/health'),
   me: () => request<{ user: UserDTO }>('/auth/me'),
   login: (email: string, password: string) =>
     request<{ user: UserDTO }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),

@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
-import { PORT, WEB_DIST } from './config';
+import { DATA_DIR, PORT, SEED_DEMO, TRUST_PROXY, WEB_DIST } from './config';
 import { attachUser } from './auth';
 import { authRouter } from './routes/auth';
 import { sourcesRouter } from './routes/sources';
@@ -17,15 +17,22 @@ import { AIError } from './generation/llm';
 
 const app = express();
 app.disable('x-powered-by');
-// Em preview/PaaS o app roda atrás de proxy: confiar em 1 salto permite limitar busca anônima por visitante.
-// Em rede local sem proxy, defina TRUST_PROXY=0 para ignorar X-Forwarded-For.
-app.set('trust proxy', process.env.TRUST_PROXY === '0' ? false : 1);
+// Em preview/PaaS o app roda atrás de proxy: confiar em 1 salto permite limitar busca anônima
+// por visitante e detectar HTTPS. Em rede local sem proxy, defina TRUST_PROXY=0.
+app.set('trust proxy', TRUST_PROXY);
 app.use(express.json({ limit: '3mb' }));
 app.use(express.urlencoded({ extended: true, limit: '3mb' }));
 app.use(attachUser);
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, name: 'Study Flux', version: '0.1.0', time: new Date().toISOString() });
+  res.json({
+    ok: true,
+    name: 'Study Flux',
+    version: '0.1.0',
+    time: new Date().toISOString(),
+    // Exposto para a interface esconder o botão "Entrar como demo" em deploy público.
+    demo: SEED_DEMO,
+  });
 });
 
 app.use('/api/auth', authRouter);
@@ -55,6 +62,15 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
     res.status(error.status).json({ error: error.message });
     return;
   }
+  const details = error as { type?: string; status?: number };
+  if (details?.type === 'entity.too.large') {
+    res.status(413).json({ error: 'Conteúdo muito grande. O limite é 3 MB para JSON e 25 MB para arquivos.' });
+    return;
+  }
+  if (details?.type === 'entity.parse.failed') {
+    res.status(400).json({ error: 'JSON inválido no corpo da requisição.' });
+    return;
+  }
   const message = error instanceof Error ? error.message : 'Erro inesperado.';
   if (message.includes('Formato não suportado') || message.includes('File too large')) {
     res.status(400).json({ error: message.replace('File too large', 'Arquivo muito grande (limite de 25 MB).') });
@@ -66,7 +82,13 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
 
 ensureSeeded();
 
+if (!fs.existsSync(WEB_DIST)) {
+  console.warn('[aviso] web/dist não encontrado — rode `npm run build` para servir a interface.');
+}
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Study Flux API em http://0.0.0.0:${PORT}`);
-  console.log(`Conta demo: demo@studyflux.app / estudar123`);
+  console.log(`Dados: ${DATA_DIR} · APP_SECRET: ${process.env.APP_SECRET ? 'variável de ambiente' : `arquivo ${DATA_DIR}/app.secret`}`);
+  console.log(`Proxy confiável: ${TRUST_PROXY === false ? 'desligado' : `${TRUST_PROXY} salto(s)`} · conta demo: ${SEED_DEMO ? 'ativa' : 'desativada'}`);
+  if (SEED_DEMO) console.log('Conta demo: demo@studyflux.app / estudar123');
 });

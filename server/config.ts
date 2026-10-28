@@ -22,3 +22,26 @@ function loadSecret(): string {
 export const APP_SECRET = loadSecret();
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 export const MAX_TEXT_CHARS = 600_000;
+
+/**
+ * Conta demo (`demo@studyflux.app`) é ótima para avaliação e ruim para produção
+ * aberta: todo mundo entra na mesma conta e vê os mesmos dados.
+ * Em deploy público, use SEED_DEMO=0.
+ */
+export const SEED_DEMO = !['0', 'false', 'off'].includes(String(process.env.SEED_DEMO ?? '').toLowerCase());
+
+/**
+ * Cookie de sessão com `Secure`. Em `auto` (padrão) acompanha o protocolo da
+ * requisição — funciona em http://localhost e vira secure atrás de HTTPS.
+ * Forçar `always` exige HTTPS; `never` só para depuração.
+ */
+export type CookieSecureMode = 'auto' | 'always' | 'never';
+const rawCookieSecure = String(process.env.COOKIE_SECURE ?? 'auto').toLowerCase();
+export const COOKIE_SECURE: CookieSecureMode =
+  rawCookieSecure === 'always' || rawCookieSecure === 'true' ? 'always' : rawCookieSecure === 'never' || rawCookieSecure === 'false' ? 'never' : 'auto';
+
+/**
+ * Salto de proxy confiável para ler X-Forwarded-For/Proto e limitar busca anônima
+ * por visitante. `0` desliga (rede local sem proxy).
+ */
+export const TRUST_PROXY = process.env.TRUST_PROXY === '0' || process.env.TRUST_PROXY === 'false' ? false : 1;

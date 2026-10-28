@@ -1,0 +1,45 @@
+# Uso rápido:
+#   docker compose up -d --build
+#   docker compose logs -f app
+#   docker compose exec app npm run db:backup
+#
+# A interface e a API saem na mesma porta (http://localhost:8787).
+# Para HTTPS público, use um proxy na frente (ver docs/DEPLOY.md).
+
+services:
+  app:
+    build: .
+    image: study-flux:latest
+    container_name: study-flux
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8787}:8787"
+    environment:
+      PORT: 8787
+      DATA_DIR: /data
+      NODE_ENV: production
+      # Conta demo do login: 1 para demonstração, 0 em produção aberta.
+      SEED_DEMO: "${SEED_DEMO:-1}"
+      # auto = cookie Secure quando a requisição chega por HTTPS.
+      COOKIE_SECURE: "${COOKIE_SECURE:-auto}"
+      # 1 salto de proxy (Caddy/nginx/Cloudflare); use 0 sem proxy.
+      TRUST_PROXY: "${TRUST_PROXY:-1}"
+      # Opcional: e-mail de contato enviado ao OpenAlex.
+      OPENALEX_MAILTO: "${OPENALEX_MAILTO:-}"
+      # Opcional: defina para não depender do arquivo em /data/app.secret.
+      APP_SECRET: "${APP_SECRET:-}"
+    volumes:
+      - studyflux-data:/data
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:'+(process.env.PORT||8787)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+
+volumes:
+  studyflux-data:

@@ -1,9 +1,9 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Icon, Logo } from '../components/Icon';
 import { Spinner } from '../components/ui';
 import { useAuth } from '../lib/auth';
-import { ApiError } from '../lib/api';
+import { api, ApiError } from '../lib/api';
 
 export function LoginPage() {
   const { user, login, register, demo } = useAuth();
@@ -18,6 +18,21 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState<'form' | 'demo' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Em deploy público a conta demo é desativada (SEED_DEMO=0) e o botão some.
+  const [demoEnabled, setDemoEnabled] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    api
+      .health()
+      .then((health) => {
+        if (alive) setDemoEnabled(health.demo);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   if (user) return <Navigate to={redirectTo} replace />;
 
@@ -159,16 +174,18 @@ export function LoginPage() {
             </button>
           </form>
 
-          <div className="demo-box">
-            <div>
-              <strong className="small">Só quer ver como funciona?</strong>
-              <div className="tiny muted">Conta demo com casos, materiais e histórico prontos.</div>
+          {demoEnabled ? (
+            <div className="demo-box">
+              <div>
+                <strong className="small">Só quer ver como funciona?</strong>
+                <div className="tiny muted">Conta demo com casos, materiais e histórico prontos.</div>
+              </div>
+              <button className="btn btn-secondary btn-sm" onClick={enterDemo} disabled={busy !== null}>
+                {busy === 'demo' ? <Spinner dark /> : <Icon name="sparkles" size={14} />}
+                Entrar como demo
+              </button>
             </div>
-            <button className="btn btn-secondary btn-sm" onClick={enterDemo} disabled={busy !== null}>
-              {busy === 'demo' ? <Spinner dark /> : <Icon name="sparkles" size={14} />}
-              Entrar como demo
-            </button>
-          </div>
+          ) : null}
 
           <div className="auth-guest">
             <div className="tiny muted" style={{ marginBottom: 6 }}>Ainda só quer pesquisar?</div>

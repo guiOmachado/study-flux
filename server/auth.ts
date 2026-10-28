@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
+import { COOKIE_SECURE } from './config';
 import { get, run, type UserRow } from './db';
 import { newToken, nowIso, parseCookies } from './util';
 
@@ -14,7 +15,14 @@ declare global {
   }
 }
 
-export function createSession(res: Response, userId: number): string {
+/** `Secure` no cookie quando a conexão é HTTPS (direto ou atrás de proxy confiável). */
+export function cookieIsSecure(req: Request): boolean {
+  if (COOKIE_SECURE === 'always') return true;
+  if (COOKIE_SECURE === 'never') return false;
+  return req.secure || req.get('x-forwarded-proto')?.split(',')[0]?.trim() === 'https';
+}
+
+export function createSession(req: Request, res: Response, userId: number): string {
   const token = newToken();
   const created = new Date();
   const expires = new Date(created.getTime() + SESSION_DAYS * 86_400_000);
@@ -22,6 +30,7 @@ export function createSession(res: Response, userId: number): string {
   res.cookie(COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
+    secure: cookieIsSecure(req),
     path: '/',
     maxAge: SESSION_DAYS * 86_400_000,
   });

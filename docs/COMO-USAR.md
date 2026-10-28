@@ -159,6 +159,19 @@ Use para transformar um caso discutido em aula em material treinável.
 
 ---
 
+## Para quem vai liberar o acesso à turma
+
+O guia de deploy está em **[DEPLOY.md](DEPLOY.md)**, com Docker, Render, Fly.io, VPS com HTTPS e um túnel gratuito para testar no mesmo dia. O essencial:
+
+1. Rode com **`SEED_DEMO=0`** — assim cada estudante cria a própria conta e ninguém entra na conta de demonstração.
+2. Use **HTTPS** e deixe `COOKIE_SECURE=auto` e `TRUST_PROXY=1`.
+3. Garanta **saída para a internet** no servidor: é o que faz a busca em Europe PMC, Bookshelf, OpenAlex e PubMed funcionar.
+4. Agende **`npm run db:backup`** diariamente — o banco SQLite vive no volume.
+
+O link que você compartilha é só o endereço do site: o aluno abre, clica em **Criar agora** e já pode enviar material, buscar em acervos, treinar e revisar.
+
+---
+
 ## Rotina sugerida de uma semana
 
 | Dia | 20–40 minutos |
@@ -189,3 +202,4 @@ O objetivo não é acumular casos: é **errar, entender e revisar**.
 | Link recusado na importação | Só URLs públicas http/https são aceitas; páginas dentro da rede local e arquivos `file://` são bloqueados. |
 | Errei e quero refazer | Abra o caso → **Treinar** novamente. Ou use o histórico no Progresso. |
 | Quero apagar tudo e recomeçar | `npm run reset` (apaga o banco local) e reinicie. |
+| Sou professor e quero liberar para a turma | Siga **[DEPLOY.md](DEPLOY.md)**; use `SEED_DEMO=0` e HTTPS. |
