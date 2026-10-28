@@ -3,7 +3,15 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 
 export const ROOT = process.cwd();
-export const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(ROOT, 'data');
+/**
+ * Onde ficam o banco e o segredo. Ordem: DATA_DIR explícito → volume do Railway
+ * (a variável é injetada pela plataforma) → pasta `data/` local.
+ */
+export const DATA_DIR = process.env.DATA_DIR
+  ? path.resolve(process.env.DATA_DIR)
+  : process.env.RAILWAY_VOLUME_MOUNT_PATH
+    ? path.resolve(process.env.RAILWAY_VOLUME_MOUNT_PATH)
+    : path.join(ROOT, 'data');
 export const DB_PATH = path.join(DATA_DIR, 'studyflux.db');
 export const WEB_DIST = path.join(ROOT, 'web', 'dist');
 export const PORT = Number(process.env.PORT ?? 8787);

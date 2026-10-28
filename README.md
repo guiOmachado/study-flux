@@ -90,7 +90,16 @@ npm run test:discovery:live  # testes AO VIVO: consultam Europe PMC, Bookshelf, 
 
 ### Deploy para os estudantes
 
-O app é um processo Node com SQLite em disco: precisa de **container/VM com volume persistente e saída para a internet** (Netlify/Vercel não servem para o backend). O repositório já tem `Dockerfile`, `docker-compose.yml`, `render.yaml` e `fly.toml`.
+O app é um processo Node com SQLite em disco: precisa de **container/VM com volume persistente e saída para a internet** (Netlify/Vercel não servem para o backend). Não é preciso migrar nada — Railway, Render e Fly.io rodam este repositório como está:
+
+| Plataforma | Deploy | Custo mínimo (out/2026) |
+| --- | --- | --- |
+| Railway | conecta o repo, adiciona volume | ~US$ 5/mês |
+| Render | blueprint `render.yaml` | ~US$ 7/mês + disco |
+| Fly.io | `fly deploy` | ~US$ 2,35/mês |
+| VPS | `docker compose up -d --build` | ~US$ 4–6/mês |
+
+O repositório já tem `Dockerfile`, `docker-compose.yml`, `render.yaml`, `railway.json` e `fly.toml`.
 
 ```bash
 docker compose up -d --build   # http://localhost:8787, dados no volume studyflux-data

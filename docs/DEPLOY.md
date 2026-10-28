@@ -18,12 +18,15 @@ O Study Flux é **um processo Node que serve a interface e a API na mesma porta*
 
 **Conclusão:** container (Docker) ou máquina virtual com volume. **Netlify/Vercel não servem** para este backend — são CDN + funções efêmeras, com disco somente leitura, payload de 6 MB e timeout curto. O front até poderia ir para lá, mas o ganho é zero quando comparado a servir tudo pelo mesmo processo.
 
+Se o objetivo é um link público para os alunos **sem reescrever nada**, use uma plataforma que roda o contêiner com disco (Railway, Render, Fly.io) — o código já está preparado. Detalhes de custo na seção 2.
+
 O repositório já vem com os arquivos prontos:
 
 ```
 Dockerfile             imagem de produção (multi-stage, non-root, healthcheck)
 docker-compose.yml     execução local/VPS com volume persistente
 render.yaml            blueprint do Render (com disco)
+railway.json           detecção do Dockerfile + healthcheck no Railway
 fly.toml               configuração do Fly.io (com volume)
 scripts/backup.mjs     backup consistente do SQLite (npm run db:backup)
 ```
@@ -32,14 +35,28 @@ scripts/backup.mjs     backup consistente do SQLite (npm run db:backup)
 
 ## 2. Opções, do mais simples ao mais controlável
 
-| Caminho | Esforço | Custo | Dados persistem? | Bom para |
-| --- | --- | --- | --- | --- |
-| **Cloudflare Tunnel + seu PC** | ~10 min | grátis | sim (no seu disco) | testar com uma turma **hoje**, sem contratar nada |
-| **Render (blueprint)** | ~15 min | plano pago por causa do disco | sim | piloto com pouca manutenção |
-| **Fly.io** | ~20 min | baixo (volume + VM pequena) | sim | produção pequena, HTTPS e região no Brasil (`gru`) |
-| **VPS + Docker Compose + Caddy** | ~40 min | preço de uma VPS | sim | controle total, domínio próprio, turma inteira |
+O Study Flux **não precisa de migração** para ir para a nuvem: basta uma plataforma que rode um contêiner (ou processo Node) com **volume persistente** e **saída para a internet**. Todas as opções abaixo aceitam o `Dockerfile` deste repositório e fazem deploy por `git push` — o fluxo é o mesmo do Netlify, só que com disco.
 
-> Regra prática: se você quer **só mostrar**, use o túnel. Se quer **usar com alunos por semanas**, Render ou Fly. Se quer **domínio da faculdade e soberania dos dados**, VPS.
+Preços de referência (outubro/2026, sem impostos):
+
+| Plataforma | Como é o deploy | Menor configuração que serve | Custo mensal aproximado |
+| --- | --- | --- | --- |
+| **Railway** | conecta o repositório, detecta o `Dockerfile` | 1 serviço + volume de 1 GB | **US$ 5** (Hobby, já inclui US$ 5 de uso) |
+| **Render** | blueprint `render.yaml`, auto-deploy no push | web service 0,5 CPU/512 MB + disco 1 GB | **US$ 7,25** (US$ 7 + US$ 0,25/GB) |
+| **Fly.io** | `fly deploy` (CLI) | 1 máquina shared-cpu 256 MB + volume 1 GB | **~US$ 2,35** (US$ 2,19 + US$ 0,15/GB) |
+| **Zeabur** | conecta o repositório, adiciona volume no painel | 1 contêiner + volume | **~US$ 5** (plano Dev com US$ 5 de crédito) |
+| **VPS + Docker Compose** | `git clone` + `docker compose up -d --build` | 1 vCPU / 1 GB / 20 GB | **US$ 4–6** (Hetzner, Contabo, Magalu Cloud) + domínio |
+| **Cloudflare Tunnel + seu PC** | roda local e expõe por túnel | seu computador ligado | **grátis** (endereço temporário) |
+| ~~Netlify, Vercel, Cloudflare Pages~~ | estático + funções | — | não servem: sem disco, 6 MB de payload e timeout curto |
+| ~~Koyeb~~ | contêiner | — | desde fev/2026 não aceita novos usuários no plano gratuito (Pro US$ 29) |
+
+**Plano gratuito: o que dá e o que não dá**
+
+- **Render free** e **Railway free** (US$ 1 de crédito) não sustentam este app: o Render free **não aceita disco** e perde o sistema de arquivos a cada deploy, reinício ou hibernação — ou seja, o SQLite sumiria. O Railway free dá cerca de 1/5 do necessário para rodar 24×7.
+- **Fly.io** é o mais barato para ficar sempre no ar (~US$ 2,35/mês), mas exige CLI.
+- É possível rodar **de graça** combinando um plano free com replicação contínua do SQLite para um bucket (Litestream → Cloudflare R2, 10 GB grátis) e restauração no boot. Funciona, mas troca "um disco" por "um processo a mais para vigiar" — e o serviço free hiberna após 15 min sem tráfego, com ~1 min de cold start para o aluno. Só recomendo se custo for realmente bloqueante.
+
+> Regra prática: **Railway** se você quer o caminho mais parecido com o Netlify (conectar repo, criar volume, pronto). **Render** se prefere blueprint versionado no repositório. **Fly.io** se quer o menor custo com região no Brasil (`gru`). **VPS** se a faculdade exige domínio próprio e controle dos dados.
 
 ---
 
@@ -48,7 +65,7 @@ scripts/backup.mjs     backup consistente do SQLite (npm run db:backup)
 | Variável | Padrão | Para que serve |
 | --- | --- | --- |
 | `PORT` | `8787` | Porta HTTP (o Render/Fly injetam a dele; o app respeita). |
-| `DATA_DIR` | `./data` (na imagem: `/data`) | Onde ficam `studyflux.db` e `app.secret`. **Precisa ser o volume.** |
+| `DATA_DIR` | `./data` (na imagem: `/data`) | Onde ficam `studyflux.db` e `app.secret`. **Precisa ser o volume.** No Railway, se não for definida, o app usa `RAILWAY_VOLUME_MOUNT_PATH` automaticamente. |
 | `APP_SECRET` | gerado em `DATA_DIR/app.secret` | Assina sessões e cifra a chave de IA. Em produção, defina para não depender do arquivo. |
 | `SEED_DEMO` | `1` | `0` desativa a conta demo **e** esconde o botão “Entrar como demo”. **Use `0` em deploy público.** |
 | `COOKIE_SECURE` | `auto` | `auto` marca o cookie como `Secure` quando a requisição chega por HTTPS. `always` força; `never` só para depuração. |
@@ -124,7 +141,7 @@ Aponte o DNS (`A`) do subdomínio para o IP da VPS. O Caddy emite e renova o cer
 ## 5. Caminho B — Render (blueprint)
 
 1. **New + → Blueprint**, escolha este repositório. O Render lê `render.yaml`.
-2. Ajuste `plan` se necessário: **disco persistente exige plano pago** (Starter+). No plano free o SQLite seria apagado a cada deploy.
+2. Ajuste `plan` se necessário: **disco persistente exige instância paga** (`starter` = 0,5 CPU/512 MB, US$ 7/mês). No plano free o serviço **não aceita disco** e o SQLite seria apagado a cada deploy, reinício ou hibernação — não use free para dados de alunos.
 3. Preencha `OPENALEX_MAILTO` quando pedir (é `sync: false`).
 4. Deploy. O healthcheck usa `/api/health`; a porta vem de `PORT`.
 
@@ -134,7 +151,27 @@ O blueprint já define `SEED_DEMO=0`, `DATA_DIR=/data`, disco de 1 GB montado em
 
 ---
 
-## 6. Caminho C — Fly.io
+## 6. Caminho C — Railway (o mais próximo do Netlify)
+
+1. **New Project → Deploy from GitHub repo** e escolha este repositório. O `railway.json` manda usar o `Dockerfile` e o healthcheck em `/api/health`.
+2. No serviço, aba **Variables**: `SEED_DEMO=0` (produção) e `APP_SECRET` (gere com `openssl rand -hex 32`). `PORT` é injetada pela plataforma e o app já respeita.
+3. Aba **Volumes → Add Volume**, mount path **`/data`**, 1 GB. Não precisa configurar `DATA_DIR`: o app usa `RAILWAY_VOLUME_MOUNT_PATH` automaticamente quando o volume existe.
+4. **Settings → Networking → Generate Domain** para receber a URL pública (ou aponte um domínio seu).
+5. Deploy. Acompanhe os logs: aparecem `Dados: /data`, `conta demo: desativada` e a porta efetiva.
+
+```bash
+# opcional, pelo CLI
+npm i -g @railway/cli
+railway login && railway link
+railway variables --set SEED_DEMO=0 --set APP_SECRET=$(openssl rand -hex 32)
+railway up
+```
+
+Pontos de atenção: mantenha **1 réplica** (SQLite + caches em memória), e o volume do plano Hobby vai até 5 GB — suficiente para uma turma, porque cada material guarda apenas o texto extraído.
+
+---
+
+## 7. Caminho D — Fly.io
 
 ```bash
 # 1) ajuste o nome do app em fly.toml (precisa ser único)
@@ -155,7 +192,7 @@ O `fly.toml` já vem com `force_https = true`, `PORT=8080`, `DATA_DIR=/data`, `S
 
 ---
 
-## 7. Caminho D — Sem servidor: túnel do seu computador
+## 8. Caminho E — Sem servidor: túnel do seu computador
 
 Útil para colocar no ar **hoje**, com os alunos testando, sem contratar nada. O Cloudflare Tunnel cria um endereço público HTTPS para o app rodando na sua máquina (sem abrir porta no roteador).
 
@@ -181,7 +218,7 @@ cloudflared tunnel run --url http://localhost:8787 study-flux
 
 ---
 
-## 8. Checklist depois do deploy
+## 9. Checklist depois do deploy
 
 ```bash
 # 1. Servidor vivo
@@ -205,7 +242,7 @@ Na interface:
 
 ---
 
-## 9. Backup e restauração
+## 10. Backup e restauração
 
 `npm run db:backup` usa `VACUUM INTO`: gera uma cópia íntegra **com o servidor rodando** (copiar o `.db` na mão pode capturar um estado inconsistente do WAL).
 
@@ -235,7 +272,7 @@ No Render/Fly, além do `db:backup`, use o snapshot do disco do provedor.
 
 ---
 
-## 10. Segurança e uso com alunos
+## 11. Segurança e uso com alunos
 
 - **HTTPS é obrigatório** em produção: sem ele o cookie de sessão viaja em claro (`COOKIE_SECURE=auto` só marca `Secure` quando a conexão é HTTPS).
 - **`SEED_DEMO=0`** evita que todos entrem na mesma conta de demonstração.
@@ -247,7 +284,7 @@ No Render/Fly, além do `db:backup`, use o snapshot do disco do provedor.
 
 ---
 
-## 11. Quando migrar de SQLite
+## 12. Quando migrar de SQLite
 
 | Sinal | Ação |
 | --- | --- |
@@ -259,7 +296,7 @@ No Render/Fly, além do `db:backup`, use o snapshot do disco do provedor.
 
 ---
 
-## 12. Problemas comuns
+## 13. Problemas comuns
 
 | Sintoma | Causa provável | Solução |
 | --- | --- | --- |
