@@ -59,7 +59,7 @@ export function Layout() {
     <div className="shell">
       {open ? <div className="sidebar-overlay" onClick={() => setOpen(false)} /> : null}
       <aside className={`sidebar${open ? ' open' : ''}`}>
-        <NavLink to="/" className="brand">
+        <NavLink to={isGuest ? '/descobrir' : '/'} className="brand">
           <Logo />
           <div>
             <span className="brand-name">Study Flux</span>
