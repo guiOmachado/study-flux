@@ -1,0 +1,72 @@
+name: Interface (build + smoke)
+
+# Garante que a interface Angular compila e que as rotas continuam renderizando
+# com os dados da conta demo. O smoke test sobe o bundle real em jsdom, faz
+# login, navega pelas rotas e responde uma questão.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web-ng/**'
+      - 'shared/**'
+      - 'server/**'
+      - 'scripts/smoke-web.mjs'
+      - 'angular.json'
+      - 'package.json'
+      - '.github/workflows/web.yml'
+  pull_request:
+    paths:
+      - 'web-ng/**'
+      - 'shared/**'
+      - 'server/**'
+      - 'scripts/smoke-web.mjs'
+      - 'angular.json'
+      - 'package.json'
+      - '.github/workflows/web.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build e smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck (servidor, scripts e tipos compartilhados)
+        run: npm run typecheck
+
+      - name: Build da interface
+        run: npm run build
+
+      - name: Subir o app
+        run: |
+          PORT=5173 npm start > /tmp/app.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:5173/api/health > /dev/null; then
+              echo "app no ar"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "app não respondeu"; cat /tmp/app.log; exit 1
+
+      - name: Smoke test da interface
+        run: npm run test:web
+        env:
+          SMOKE_BASE: http://127.0.0.1:5173
+
+      - name: Log do servidor em caso de falha
+        if: failure()
+        run: cat /tmp/app.log

@@ -1,0 +1,34 @@
+# Blueprint do Render: https://render.com/docs/blueprint-spec
+# Crie o serviço com "New + > Blueprint" apontando para este repositório.
+# Disco persistente exige plano pago (Starter ou superior) — no plano free o
+# banco SQLite seria apagado a cada deploy/reinício.
+
+services:
+  - type: web
+    name: study-flux
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    region: oregon
+    healthCheckPath: /api/health
+    autoDeploy: true
+    disk:
+      name: studyflux-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /data
+      - key: APP_SECRET
+        generateValue: true
+      # Produção aberta: cada estudante cria a própria conta.
+      - key: SEED_DEMO
+        value: "0"
+      - key: COOKIE_SECURE
+        value: auto
+      - key: TRUST_PROXY
+        value: "1"
+      - key: OPENALEX_MAILTO
+        sync: false

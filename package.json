@@ -1,0 +1,49 @@
+{
+  "name": "study-flux",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Study Flux — do material de estudo ao caso clínico: plataforma de treino por casos para estudantes de medicina.",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:server": "tsx watch server/index.ts",
+    "dev:web": "ng serve --host 0.0.0.0 --port 5173 --strict-port",
+    "build": "ng build",
+    "start": "tsx server/index.ts",
+    "seed": "tsx server/seed/run.ts",
+    "typecheck": "tsc --noEmit",
+    "reset": "node scripts/reset.mjs",
+    "test:discovery": "tsx scripts/test-discovery.ts",
+    "test:discovery:live": "tsx scripts/test-discovery-live.ts",
+    "db:backup": "node scripts/backup.mjs",
+    "build:web": "ng build",
+    "test:web": "node scripts/smoke-web.mjs",
+    "test:netlify": "node scripts/netlify-sim.mjs",
+    "deploy:check": "node scripts/netlify-preflight.mjs"
+  },
+  "dependencies": {
+    "@angular/common": "^22.2.3",
+    "@angular/compiler": "^22.2.3",
+    "@angular/core": "^22.2.3",
+    "@angular/forms": "^22.2.3",
+    "@angular/platform-browser": "^22.2.3",
+    "@angular/router": "^22.2.3",
+    "express": "^5.1.0",
+    "mammoth": "^1.11.0",
+    "multer": "^2.0.2",
+    "pdfjs-dist": "^5.4.149",
+    "rxjs": "^7.8.2",
+    "tslib": "^2.8.1",
+    "tsx": "^4.20.6"
+  },
+  "devDependencies": {
+    "@angular/build": "^22.2.4",
+    "@angular/cli": "^22.2.4",
+    "@angular/compiler-cli": "^22.2.3",
+    "@types/express": "^5.0.3",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^22.18.9",
+    "jsdom": "^30.1.3",
+    "typescript": "^6.0.2"
+  }
+}
