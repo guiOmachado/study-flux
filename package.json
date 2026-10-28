@@ -12,7 +12,8 @@
     "start": "tsx server/index.ts",
     "seed": "tsx server/seed/run.ts",
     "typecheck": "tsc --noEmit",
-    "reset": "node scripts/reset.mjs"
+    "reset": "node scripts/reset.mjs",
+    "test:discovery": "tsx scripts/test-discovery.ts"
   },
   "dependencies": {
     "express": "^5.1.0",

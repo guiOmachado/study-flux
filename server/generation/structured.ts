@@ -93,7 +93,8 @@ export function generateStudyBlocks(parsed: ParsedSource, sourceTitle: string): 
     const clinical = sectionFactsForTopic(parsed, topic, ['quadro_clinico', 'definicao', 'fisiopatologia'], 8);
     const diagnosis = sectionFactsForTopic(parsed, topic, ['diagnostico'], 8);
     const treatment = sectionFactsForTopic(parsed, topic, ['tratamento', 'prevencao', 'complicacoes'], 8);
-    const allFacts = [...new Set([...clinical, ...diagnosis, ...treatment])];
+    const genericFacts = parsed.sections.flatMap((section) => section.facts);
+    const allFacts = [...new Set([...clinical, ...diagnosis, ...treatment, ...genericFacts])];
     if (allFacts.length < 2) continue;
 
     const questions = buildPoolQuestions(parsed, topic, [
@@ -103,6 +104,30 @@ export function generateStudyBlocks(parsed: ParsedSource, sourceTitle: string): 
       { label: 'conceitos gerais', types: ['epidemiologia', 'outro'] },
     ]);
 
+    if (questions.length < 2) {
+      // Material sem seções claras (ex.: resumo de artigo): usa todos os trechos disponíveis.
+      const generic = sectionFactsForTopic(parsed, topic, ['outro', 'definicao', 'quadro_clinico', 'diagnostico', 'tratamento', 'epidemiologia'], 8);
+      const extras = [...new Set([...generic, ...allFacts])];
+      const index0 = questions.length;
+      for (const [factIndex, fact] of extras.entries()) {
+        if (questions.length >= 4) break;
+        const cloze = buildCloze(fact, index0 + factIndex + 7);
+        if (!cloze) continue;
+        const options = cloze.options.map((text, i) => ({ id: String.fromCharCode(97 + i), text: shorten(text, 120) }));
+        const correctIndex = cloze.options.findIndex((text) => text === cloze.correct);
+        if (correctIndex < 0) continue;
+        questions.push({
+          id: `q${questions.length + 1}`,
+          stage: questions.length,
+          prompt: cloze.prompt,
+          options,
+          correctOptionId: options[correctIndex].id,
+          rationale: cloze.explanation,
+          keyPoint: `Revisar conceitos de ${topic}.`,
+          sourceExcerpt: shorten(fact, 320),
+        });
+      }
+    }
     if (questions.length < 2) continue;
 
     const area = entry?.area ?? parsed.area ?? detectArea(`${sourceTitle} ${topic}`);

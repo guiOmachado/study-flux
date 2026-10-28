@@ -119,6 +119,7 @@ export interface SourceSummary {
 
 export interface SourceAnalysis {
   kind: 'prova' | 'capitulo' | 'resumo';
+  language?: 'pt' | 'en' | 'es' | 'outro';
   sections: { heading: string; type: string; facts: number }[];
   topics: string[];
   conditions: string[];

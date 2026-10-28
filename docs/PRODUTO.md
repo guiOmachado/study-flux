@@ -61,7 +61,7 @@ Direito, enfermagem, engenharia: mesmo ciclo (material → casos → treino → 
 
 ## 3. Princípios de produto
 
-1. **O material do aluno é o ponto de partida.** Não exigimos que ele troque de fonte; a plataforma se adapta ao PDF que ele já tem.
+1. **O material do aluno é o ponto de partida — e o mundo aberto é o plano B.** Não exigimos que ele troque de fonte: a plataforma se adapta ao PDF que ele já tem e, quando falta material, busca em acervos científicos abertos.
 2. **Fidelidade antes de criatividade.** Toda pergunta gerada sem IA é ancorada em um trecho literal. Com IA, o trecho-fonte é exibido para conferência. O aluno precisa poder confiar no que estuda.
 3. **Um caminho, poucos cliques.** O fluxo ideal tem três decisões: enviar material → gerar casos → treinar. Nada de configurar taxonomias antes do primeiro valor.
 4. **Erro é insumo, não vergonha.** A correção é imediata, explicada e vira revisão. O tom da interface evita punição e celebra constância.
@@ -73,7 +73,7 @@ Direito, enfermagem, engenharia: mesmo ciclo (material → casos → treino → 
 ## 4. Jornada principal
 
 ```
-Login/demo ─▶ Início ─▶ Materiais ─▶ [Upload] ─▶ Análise + prévia ─▶ Gerar casos
+Login/demo ─▶ Início ─▶ Descobrir / Materiais ─▶ [Busca, link ou upload] ─▶ Análise + prévia ─▶ Gerar casos
                                                                          │
                     ┌────────────────────────────────────────────────────┘
                     ▼
@@ -88,7 +88,8 @@ Login/demo ─▶ Início ─▶ Materiais ─▶ [Upload] ─▶ Análise + pr�
 | --- | --- | --- |
 | **Login** | Entrar rápido | Conta demo em um clique; painel esquerdo explica o valor em 4 pontos. |
 | **Início** | Responder "o que faço agora?" | Meta diária, sequência, cards vencidos e pontos frágeis em primeiro plano; onboarding de 3 passos quando a conta está vazia. |
-| **Materiais** | Enviar e ver o que foi lido | Upload por arrastar ou colar texto; status visível (analisado/gerado/erro); temas detectados como badges. |
+| **Descobrir** | Trazer conteúdo sem ter o arquivo | Três abas: acervos científicos (busca com filtro de acesso aberto), gerar por tema (IA) e importar por link. Mostra fonte, ano, licença e se o texto é resumo ou completo antes de importar. |
+| **Materiais** | Enviar e ver o que foi lido | Upload por arrastar ou colar texto; atalho para a descoberta; status visível (analisado/gerado/erro); temas detectados como badges. |
 | **Detalhe do material** | Conferir a leitura e gerar | Estrutura do material, temas, condições, questões/gabarito, trechos extraídos e **prévia dos casos** antes de salvar. |
 | **Biblioteca** | Escolher o próximo treino | Filtros por área/dificuldade/status, busca com debounce, "meus" vs. comunidade, ações contextuais (editar, publicar, duplicar, exportar). |
 | **Treino** | Praticar com correção | Prontuário sempre acessível (recolhível), uma pergunta por vez, feedback com justificativa e trecho-fonte, atalhos 1–5 + Enter. |
@@ -130,6 +131,16 @@ O aluno escolhe o formato pelo tipo de material que tem. O produto não força u
 ---
 
 ## 6. Funcionalidades e regras
+
+### Descoberta de conteúdo
+
+- **Acervos científicos abertos**: Europe PMC (artigos e diretrizes), NCBI Bookshelf (capítulos de livros-texto), OpenAlex (metadados + PDF aberto) e PubMed (resumos). Busca agregada em paralelo; se um acervo cair, os outros continuam e a tela informa o que falhou.
+- **Filtro de acesso aberto** e escolha de quais acervos consultar; a própria biblioteca do aluno entra como fonte (útil para regerar casos de um material antigo).
+- **Importar por link**: qualquer URL pública de artigo/capítulo/diretriz, com aviso sobre direitos autorais.
+- **Resumo ou texto completo**: quando só o resumo está disponível, o app importa assim mesmo e marca a limitação — é melhor um caso a partir do resumo do que nenhum caso.
+- **Procedência preservada**: cada material importado guarda referência (autor, ano, revista), link de origem, licença e aviso de que o conteúdo é de terceiros.
+- **Gerar por tema** (quando há IA configurada): para temas em que o aluno não tem material nenhum. É o único caminho em que o conteúdo não vem de uma fonte citável — a tela avisa que a conferência é responsabilidade do aluno.
+- **Gerar logo após importar**: a importação pode já criar 1–8 casos, publicados ou em rascunho.
 
 ### Materiais
 
@@ -209,7 +220,7 @@ O aluno escolhe o formato pelo tipo de material que tem. O produto não força u
 
 ### Fase 1 — agora (entregue nesta versão)
 
-Núcleo do ciclo: materiais → geração estruturada/IA → treino → simulado → revisão → progresso; conta demo; editor manual; exportação.
+Núcleo do ciclo: materiais → geração estruturada/IA → treino → simulado → revisão → progresso; **descoberta em acervos científicos abertos** (Europe PMC, NCBI Bookshelf, OpenAlex, PubMed), importação por link, geração por tema e suporte a material em inglês; conta demo; editor manual; exportação.
 
 ### Fase 2 — próximas 6 a 10 semanas
 
@@ -219,8 +230,10 @@ Núcleo do ciclo: materiais → geração estruturada/IA → treino → simulado
 | P0 | **Curadoria/revisão de casos** (fila de revisão, relato de erro) | Qualidade é o principal risco percebido. |
 | P1 | **Turmas e compartilhamento** (professor publica, aluno consome) | Canal de aquisição e uso institucional. |
 | P1 | **Busca por tema dentro do material** (âncoras por página) | Aumenta confiança na fonte e facilita conferência. |
+| P1 | **Seleção de trechos na importação** | Importar o capítulo inteiro traz ruído; deixar o aluno marcar a seção melhora a geração. |
 | P1 | **Modo offline/PWA** e notificações de revisão | Revisão falha sem lembrete. |
 | P2 | **Importação de bancos de questões** (CSV/JSON) | Aproveita conteúdo já digitalizado. |
+| P2 | **Mais acervos e recorte regional** (SciELO, LILACS, BVS, diretrizes brasileiras) | Aproxima do currículo e da linguagem da faculdade brasileira. |
 | P2 | **Explicação adaptativa** ("por que errei") com IA | Personaliza o feedback. |
 
 ### Fase 3 — 3 a 6 meses
@@ -278,10 +291,12 @@ Com isso, o mesmo motor gera casos de outra profissão sem tocar no núcleo. A i
 | --- | --- | --- |
 | **Alucinação da IA** (dose, valor, conduta) | Alto (risco pedagógico e de segurança) | Prompt restritivo, justificativa com trecho-fonte, prévia antes de publicar, modo estruturado fiel como alternativa, aviso explícito no caso. |
 | **PDF ilegível (scan)** | Alto | Detecção e aviso claro; OCR no roadmap. |
-| **Material protegido por direitos autorais** | Médio/alto | Uso pessoal por padrão (rascunho); publicação exige ação explícita; aviso nas configurações; roadmap: checagem e política de uso. |
+| **Material protegido por direitos autorais** | Médio/alto | Uso pessoal por padrão (rascunho); publicação exige ação explícita; aviso nas configurações; na descoberta, só fontes abertas são baixadas, com licença e link de origem gravados no material; roadmap: política de uso e curadoria. |
+| **Acervo externo fora do ar ou lento** | Médio | Busca paralela com timeout, falha isolada por acervo (`statuses[]`), cache de 10 min e mensagem clara quando o servidor não tem internet. |
+| **Importação de link malicioso (SSRF)** | Alto (infra) | Guarda anti-SSRF: apenas http/https públicos, após resolução DNS; limite de 12 MB e timeout. |
 | **Sobrecarga de casos gerados** | Médio | Limite por geração, agrupamento por blocos, filtros. |
 | **Qualidade do gabarito de provas antigas** | Médio | Só reutiliza questões com gabarito explícito; mostra a origem. |
-| **Privacidade** | Alto | Sem envio externo por padrão; chave criptografada; dados locais; exportação. |
+| **Privacidade** | Alto | Sem envio externo por padrão; chave criptografada; dados locais; exportação. Na descoberta, só o termo buscado sai para os acervos públicos. |
 | **Complexidade de configuração de IA** | Médio | Provedores pré-configurados, teste de conexão, listagem de modelos, fallback automático. |
 | **Dependência de um único processo Node** | Baixo nesta fase | Próximo passo: fila de processamento e storage de arquivos. |
 

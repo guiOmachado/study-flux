@@ -42,6 +42,10 @@ export function MaterialsPage() {
         subtitle="Envie provas antigas, capítulos de livros ou resumos. O Study Flux lê o conteúdo e mostra o que conseguiu identificar antes de gerar os casos."
         actions={
           <>
+            <Link className="btn btn-ghost" to="/descobrir">
+              <Icon name="globe" size={15} />
+              Descobrir conteúdo
+            </Link>
             <Link className="btn btn-secondary" to="/casos/novo">
               <Icon name="edit" size={15} />
               Criar caso manualmente
@@ -64,12 +68,18 @@ export function MaterialsPage() {
           <EmptyState
             icon="folder"
             title="Nenhum material ainda"
-            description="Comece enviando uma prova antiga com gabarito ou um capítulo que você precisa revisar. Também dá para colar um texto direto."
+            description="Envie uma prova antiga com gabarito, um capítulo ou cole um texto direto. Se preferir, busque artigos e capítulos abertos em Descobrir."
             action={
-              <button className="btn btn-primary" onClick={() => setOpen(true)}>
-                <Icon name="upload" size={15} />
-                Enviar meu primeiro material
-              </button>
+              <div className="row" style={{ gap: 8 }}>
+                <Link className="btn btn-secondary" to="/descobrir">
+                  <Icon name="globe" size={15} />
+                  Buscar em acervos
+                </Link>
+                <button className="btn btn-primary" onClick={() => setOpen(true)}>
+                  <Icon name="upload" size={15} />
+                  Enviar meu primeiro material
+                </button>
+              </div>
             }
           />
         ) : (

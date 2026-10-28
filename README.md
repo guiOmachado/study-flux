@@ -1,6 +1,6 @@
 # Study Flux
 
-> **Do material de estudo ao caso clínico.** Plataforma de treino para estudantes de medicina em período de provas: envie uma prova antiga, um capítulo de livro ou um resumo, e transforme o conteúdo em casos clínicos, simulados e revisão espaçada.
+> **Do material de estudo ao caso clínico.** Plataforma de treino para estudantes de medicina em período de provas: envie uma prova antiga, um capítulo de livro ou um resumo — ou busque um artigo aberto em acervos científicos — e transforme o conteúdo em casos clínicos, simulados e revisão espaçada.
 
 O projeto nasce focado em medicina, mas foi estruturado para crescer para outras profissões (ver [expansão](docs/PRODUTO.md#10-expansão-para-outras-profissões)).
 
@@ -23,20 +23,24 @@ As plataformas de questões existentes resolvem parte disso, mas não aproveitam
 ## O fluxo
 
 ```
-        ┌──────────────┐      ┌─────────────────┐      ┌──────────────┐      ┌──────────────┐
-        │   MATERIAL   │ ───▶ │     ANÁLISE     │ ───▶ │    CASOS     │ ───▶ │    TREINO    │
-        │ PDF / DOCX / │      │ temas, seções,  │      │ clínicos ou  │      │ feedback,    │
-        │ texto colado │      │ questões e      │      │ blocos de    │      │ simulado,    │
-        │ / prova      │      │ gabarito        │      │ fixação      │      │ revisão      │
-        └──────────────┘      └─────────────────┘      └──────────────┘      └──────┬───────┘
-                                                                                     │
-                                              ┌──────────────────────────────────────┘
-                                              ▼
-                                     ┌──────────────────┐
-                                     │   PROGRESSO +    │
-                                     │ revisão espaçada │
-                                     │ e temas frágeis  │
-                                     └──────────────────┘
+   MATERIAIS                (1) TRAZER CONTEÚDO                       (2) VIRAR CASO
+   ┌──────────────┐   ┌───────────────────────────────┐   ┌──────────────────────┐
+   │ PDF / DOCX   │   │ enviar arquivo ou colar texto │   │ análise: temas,      │
+   │ prova antiga │──▶│ importar por link             │──▶│ seções, questões,    │
+   │ capítulo     │   │ buscar em acervos abertos     │   │ gabarito             │
+   └──────────────┘   │ (Europe PMC, Bookshelf,       │   └──────────┬───────────┘
+                      │  OpenAlex, PubMed)            │              │
+                      │ ou gerar por tema (com IA)    │              ▼
+                      └───────────────────────────────┘   ┌──────────────────────┐
+                                                          │ casos clínicos ou    │
+                                                          │ blocos de fixação    │
+                                                          └──────────┬───────────┘
+                                                                     ▼
+                                              ┌──────────────┐  ┌──────────────┐
+                                              │   TREINO     │─▶│  PROGRESSO + │
+                                              │ feedback,    │  │ revisão      │
+                                              │ simulado     │  │ espaçada     │
+                                              └──────────────┘  └──────────────┘
 ```
 
 ---
@@ -46,6 +50,7 @@ As plataformas de questões existentes resolvem parte disso, mas não aproveitam
 | Área | Recursos |
 | --- | --- |
 | **Materiais** | Upload de PDF (com camada de texto), DOCX, TXT e MD; colar texto; análise automática de seções, temas, condições e questões com gabarito; prévia do que será gerado. |
+| **Descobrir conteúdo** | Busca em **acervos científicos abertos** (Europe PMC, NCBI Bookshelf, OpenAlex, PubMed) e na própria biblioteca, com filtro de acesso aberto, leitura de resumo ou texto completo, importação por **link** e geração de casos em seguida. Cada material guarda referência, licença e URL de origem. Também é possível **gerar casos só por tema** (com IA). |
 | **Geração de casos** | **Modo estruturado (sem IA)**: extrai questões de provas antigas com gabarito e monta perguntas de completar (cloze) fiéis ao texto. **Modo IA (opcional)**: casos clínicos completos com paciente, exame físico, exames e perguntas em progressão. **Automático**: usa IA quando disponível. |
 | **Biblioteca** | Filtros por área, dificuldade, status e busca; publicar/despublicar; duplicar (inclusive casos da comunidade); exportar/importar JSON; editor manual completo. |
 | **Treino** | Caso com prontuário sempre visível, feedback imediato com justificativa e trecho da fonte, atalhos de teclado, resumo final com revisão das respostas. |
@@ -53,7 +58,7 @@ As plataformas de questões existentes resolvem parte disso, mas não aproveitam
 | **Revisão espaçada** | Cards criados automaticamente a partir dos erros, algoritmo SM-2 (mesma família do Anki), agenda de vencimento e revisão por autopercepção. |
 | **Progresso** | Acerto por área e por tema, pontos fortes e frágeis, constância de 14 dias, histórico detalhado, exportação CSV. |
 | **Conta e privacidade** | Sessões com cookie httpOnly, senha com scrypt, chave de IA criptografada (AES-256-GCM), banco local SQLite. |
-| **Demonstração** | Conta demo com 7 casos autorais completos, 2 materiais (resumo e prova com gabarito), casos gerados e histórico de estudo. |
+| **Demonstração** | Conta demo com 9 casos autorais completos, 2 materiais (resumo e prova com gabarito), casos gerados e histórico de estudo. |
 
 ---
 
@@ -78,6 +83,7 @@ npm run reset      # apaga o banco local (data/) para começar do zero
 npm run typecheck  # TypeScript em todo o projeto
 npm run build      # build da interface em web/dist
 npm start          # serve API + interface compilada em http://localhost:8787
+npm run test:discovery  # testes dos acervos (offline, sem rede)
 ```
 
 ### Variáveis de ambiente (opcionais)
@@ -134,6 +140,7 @@ Detalhes em [docs/ARQUITETURA.md](docs/ARQUITETURA.md).
 
 ## Limitações conhecidas (honestas)
 
+- A descoberta usa **apenas fontes abertas**. Artigos pagos não são baixados: para eles, o app importa só o resumo, quando disponível, e sempre mostra o link da editora. O preview em nuvem pode não ter saída para a internet — nesse caso a busca avisa e continua funcionando com a sua biblioteca.
 - **PDF escaneado sem camada de texto** não é lido: não há OCR nesta versão. A plataforma avisa e sugere colar o texto.
 - O modo estruturado funciona melhor com material **com subtítulos** (Definição, Quadro clínico, Diagnóstico, Tratamento) ou com **questões + gabarito**. Texto corrido gera menos perguntas.
 - A geração por IA depende da qualidade do provedor escolhido e **deve ser revisada** antes de publicar — o app mostra as perguntas e o trecho-fonte para conferência.

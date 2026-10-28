@@ -70,6 +70,54 @@ export interface PlayableCase {
   questionCount: number;
 }
 
+export interface DiscoveryProviderInfo {
+  id: string;
+  label: string;
+  description: string;
+  kinds: string[];
+}
+
+export interface DiscoveryProviderStatus {
+  id: string;
+  label: string;
+  ok: boolean;
+  count: number;
+  message?: string;
+}
+
+export interface DiscoveryResultDTO {
+  provider: string;
+  providerLabel: string;
+  id: string;
+  title: string;
+  authors: string[];
+  journal: string | null;
+  year: string | null;
+  doi: string | null;
+  url: string | null;
+  abstract: string | null;
+  openAccess: boolean;
+  license: string | null;
+  hasFullText: boolean;
+  type: 'artigo' | 'capitulo' | 'preprint' | 'material';
+  language: string | null;
+  extra?: Record<string, string | number | null>;
+}
+
+export interface DiscoverySearchDTO {
+  results: DiscoveryResultDTO[];
+  statuses: DiscoveryProviderStatus[];
+  cached: boolean;
+  query: string;
+}
+
+export interface DiscoveryImportOutcome {
+  source: SourceSummary;
+  generation: { created: number; updated: number; mode: string; warnings: string[]; caseIds: number[] } | null;
+  generationError: string | null;
+  importedAt: string;
+}
+
 export interface AnswerFeedback {
   correct: boolean;
   correctOptionId: string;
@@ -184,6 +232,29 @@ export const api = {
   stats: {
     get: () => request<StatsDTO>('/stats'),
     exportUrl: () => '/api/stats/export.csv',
+  },
+
+  discovery: {
+    providers: () => request<{ providers: DiscoveryProviderInfo[]; aiReady: boolean; note: string }>('/discovery/providers'),
+    search: (params: { q: string; providers?: string[]; limit?: number; oa?: boolean }) => {
+      const query = new URLSearchParams({ q: params.q });
+      if (params.providers?.length) query.set('providers', params.providers.join(','));
+      if (params.limit) query.set('limit', String(params.limit));
+      if (params.oa) query.set('oa', '1');
+      return request<DiscoverySearchDTO>(`/discovery/search?${query.toString()}`);
+    },
+    importResult: (body: {
+      provider: string;
+      id: string;
+      mode: 'abstract' | 'fulltext';
+      result?: DiscoveryResultDTO;
+      generate?: boolean;
+      aiMode?: 'auto' | 'estruturado' | 'ia';
+      publish?: boolean;
+      maxCases?: number;
+    }) => request<DiscoveryImportOutcome>('/discovery/import', { method: 'POST', body: JSON.stringify(body) }),
+    url: (body: { url: string; title?: string; generate?: boolean; aiMode?: 'auto' | 'estruturado' | 'ia'; publish?: boolean; maxCases?: number }) =>
+      request<DiscoveryImportOutcome>('/discovery/url', { method: 'POST', body: JSON.stringify(body) }),
   },
 
   settings: {

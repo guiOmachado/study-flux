@@ -19,9 +19,9 @@ O botão principal é **Montar simulado**; o secundário é **Enviar material**.
 
 ---
 
-## 2. Envie um material
+## 2. Traga o material
 
-Menu **Materiais → Novo material**. Você tem duas opções:
+Menu **Materiais → Novo material** — mas, se você ainda não tem o arquivo, comece por **Descobrir**. Você tem duas opções:
 
 ### a) Enviar arquivo
 PDF (com texto selecionável), DOCX, TXT ou MD — até 25 MB.
@@ -38,7 +38,21 @@ PDF (com texto selecionável), DOCX, TXT ou MD — até 25 MB.
 ### b) Colar texto
 Ideal para o resumo do grupo, anotações da aula ou questões copiadas.
 
-Depois de enviar, você cai na tela do material.
+### c) Descobrir conteúdo (sem ter o arquivo)
+
+No menu **Descobrir** você tem três caminhos:
+
+| Aba | Para quê | Como usar |
+| --- | --- | --- |
+| **Acervos científicos** | Artigos, revisões e capítulos de livros abertos (Europe PMC, NCBI Bookshelf, OpenAlex, PubMed) | Digite o tema em inglês ou português, escolha os acervos e busque. Cada resultado mostra autores, ano, revista, licença e se o texto é **resumo** ou **completo**. Clique em **Importar** e já escolha se quer gerar casos na hora. |
+| **Gerar por tema** | Quando você não tem material nenhum sobre o tema | Precisa de IA configurada. Informe tema, área, dificuldade e quantos casos. A tela avisa: aqui não existe fonte citável, então revise antes de publicar. |
+| **Importar por link** | Um artigo, capítulo ou diretriz que você achou em outro lugar | Cole a URL pública. O app baixa o texto (HTML ou PDF aberto) e segue o mesmo fluxo. Só funciona com páginas públicas — links internos ou pagos são recusados. |
+
+> **Boas práticas:** prefira **texto completo** a resumo (gera casos melhores); confira a licença antes de publicar casos derivados; e lembre que material em inglês funciona — os casos e a interface continuam em português.
+
+Se o servidor estiver sem internet (por exemplo, em um ambiente de preview), a busca avisa. Nesse caso, use seus próprios arquivos ou a aba **Minha biblioteca**, que busca nos materiais já enviados.
+
+Depois de enviar (ou importar), você cai na tela do material.
 
 ---
 
@@ -167,5 +181,8 @@ O objetivo não é acumular casos: é **errar, entender e revisar**.
 | Prévia vazia | Material sem subtítulos e sem questões. Formate com títulos ou ative a IA. |
 | Não encontro o gabarito | A prova pode estar sem gabarito. Sem ele, o modo estruturado não reaproveita as questões — use IA. |
 | Geração por IA falha | Teste a conexão em Configurações; confira chave, URL e se o modelo existe. |
+| Busca em acervos volta vazia | Tente termos em inglês (os acervos são internacionais), remova o filtro de acesso aberto ou selecione outros acervos. |
+| “Não foi possível alcançar o acervo” | O servidor está sem saída para a internet. Use seus materiais ou tente novamente em outro ambiente. |
+| Link recusado na importação | Só URLs públicas http/https são aceitas; páginas dentro da rede local e arquivos `file://` são bloqueados. |
 | Errei e quero refazer | Abra o caso → **Treinar** novamente. Ou use o histórico no Progresso. |
 | Quero apagar tudo e recomeçar | `npm run reset` (apaga o banco local) e reinicie. |

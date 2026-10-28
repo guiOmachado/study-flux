@@ -19,6 +19,7 @@ export interface ParsedQuestion {
 
 export interface ParsedSource {
   kind: SourceAnalysis['kind'];
+  language: 'pt' | 'en' | 'es' | 'outro';
   sections: Section[];
   questions: ParsedQuestion[];
   topics: string[];
@@ -224,6 +225,29 @@ function parseQuestions(lines: string[]): ParsedQuestion[] {
   return questions.filter((q) => q.options.length >= 2).map((q) => ({ ...q, stem: q.stem.replace(/\s+/g, ' ').trim() }));
 }
 
+const PT_WORDS = ['de', 'da', 'do', 'que', 'para', 'com', 'nao', 'um', 'uma', 'dos', 'das', 'em', 'por', 'ao', 'se', 'como', 'mais', 'pode', 'ser', 'sao', 'esta'];
+const EN_WORDS = ['the', 'of', 'and', 'in', 'to', 'with', 'for', 'is', 'are', 'was', 'were', 'that', 'this', 'by', 'from', 'as', 'be', 'has', 'have', 'patients'];
+const ES_WORDS = ['el', 'la', 'los', 'las', 'que', 'para', 'con', 'por', 'una', 'del', 'como', 'mas', 'sus', 'ser', 'esta', 'son'];
+
+function tokenCounts(input: string, words: string[]): number {
+  let total = 0;
+  for (const word of words) total += countOccurrences(input, word);
+  return total;
+}
+
+/** Heurística simples de idioma por palavras funcionais (não é um detector robusto). */
+export function detectLanguage(text: string): 'pt' | 'en' | 'es' | 'outro' {
+  const sample = ` ${norm(text.slice(0, 6000))} `;
+  const pt = tokenCounts(sample, PT_WORDS);
+  const en = tokenCounts(sample, EN_WORDS);
+  const es = tokenCounts(sample, ES_WORDS);
+  const best = Math.max(pt, en, es);
+  if (best < 8) return 'outro';
+  if (best === en) return 'en';
+  if (best === es && es > pt * 1.25) return 'es';
+  return 'pt';
+}
+
 export function detectArea(text: string, fallback = 'Clínica Médica'): string {
   const normalized = norm(text);
   let best = { area: fallback, hits: 0 };
@@ -272,6 +296,7 @@ export function analyzeSource(rawText: string, title: string, discipline?: strin
     ),
   ].slice(0, 12);
   const area = detectArea(`${title} ${discipline ?? ''} ${rawText.slice(0, 4000)}`, discipline ?? undefined);
+  const language = detectLanguage(`${title} ${rawText}`);
   const warnings: string[] = [];
 
   const hasQuestionsSection = sections.some((s) => s.type === 'questoes' || s.type === 'gabarito');
@@ -300,6 +325,7 @@ export function analyzeSource(rawText: string, title: string, discipline?: strin
 
   return {
     kind,
+    language,
     sections,
     questions,
     topics,
@@ -323,6 +349,7 @@ export function toAnalysis(parsed: ParsedSource, extraWarnings: string[] = []): 
     .map((s) => ({ heading: s.heading, type: s.type, facts: s.facts.length }));
   return {
     kind: parsed.kind,
+    language: parsed.language,
     sections,
     topics: parsed.topics,
     conditions: parsed.conditions,

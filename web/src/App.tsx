@@ -5,6 +5,7 @@ import { Spinner } from './components/ui';
 import { LoginPage } from './pages/Login';
 import { DashboardPage } from './pages/Dashboard';
 import { MaterialsPage } from './pages/Materials';
+import { DiscoverPage } from './pages/Discover';
 import { MaterialDetailPage } from './pages/MaterialDetail';
 import { CasesPage } from './pages/Cases';
 import { CaseDetailPage } from './pages/CaseDetail';
@@ -44,6 +45,7 @@ export function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAuth />}>
         <Route index element={<DashboardPage />} />
+        <Route path="descobrir" element={<DiscoverPage />} />
         <Route path="materiais" element={<MaterialsPage />} />
         <Route path="materiais/:id" element={<MaterialDetailPage />} />
         <Route path="casos" element={<CasesPage />} />

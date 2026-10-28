@@ -75,7 +75,8 @@ function seedSources(userId: number): void {
     const sourceId = Number(result.lastInsertRowid);
     const generated = generateStructured(parsed, item.title);
     for (const generatedCase of generated) {
-      insertCase(userId, generatedCase.content, 'publicado', 'estruturado', sourceId, `demo-s${sourceId}-${generatedCase.key}`);
+      // Mesmo padrão de slug usado pelo serviço de geração, para que regerar atualize em vez de duplicar.
+      insertCase(userId, generatedCase.content, 'publicado', 'estruturado', sourceId, `u${userId}-s${sourceId}-${generatedCase.key}`);
     }
   }
 }

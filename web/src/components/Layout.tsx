@@ -7,6 +7,7 @@ import { api } from '../lib/api';
 
 const NAV = [
   { to: '/', label: 'Início', icon: 'home', end: true },
+  { to: '/descobrir', label: 'Descobrir', icon: 'globe' },
   { to: '/materiais', label: 'Materiais', icon: 'folder' },
   { to: '/casos', label: 'Casos clínicos', icon: 'library' },
   { to: '/simulado', label: 'Simulado', icon: 'play' },

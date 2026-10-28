@@ -90,7 +90,8 @@ export function MaterialDetailPage() {
         subtitle={
           <span>
             {kindLabel(item.kind)}
-            {item.discipline ? ` · ${item.discipline}` : ''} · enviado em {formatDate(item.createdAt)}
+            {item.discipline ? ` · ${item.discipline}` : ''}
+            {analysis?.language ? ` · idioma ${analysis.language.toUpperCase()}` : ''} · enviado em {formatDate(item.createdAt)}
             {item.pages ? ` · ${plural(item.pages, 'página', 'páginas')}` : ''}
           </span>
         }

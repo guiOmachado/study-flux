@@ -31,6 +31,33 @@ export const TERM_BANK: Record<string, string[]> = {
     'broncodilatadores',
     'corticoide inalatório',
     'palivizumabe',
+    'thiazide diuretics',
+    'angiotensin-converting enzyme inhibitors',
+    'angiotensin receptor blockers',
+    'calcium channel blockers',
+    'beta-blockers',
+    'statins',
+    'antibiotics',
+    'anticoagulants',
+    'corticosteroids',
+    'nonsteroidal anti-inflammatory drugs',
+    'selective serotonin reuptake inhibitors',
+    'benzodiazepines',
+    'antipsychotics',
+    'insulin',
+    'metformin',
+    'magnesium sulfate',
+    'nifedipine',
+    'hydralazine',
+    'aspirin',
+    'clopidogrel',
+    'heparin',
+    'thrombolytics',
+    'bronchodilators',
+    'inhaled corticosteroids',
+    'palivizumab',
+    'norepinephrine',
+    'vasopressors'
   ],
   exame: [
     'eletrocardiograma',
@@ -52,6 +79,22 @@ export const TERM_BANK: Record<string, string[]> = {
     'angiotomografia',
     'proteinúria',
     'fundoscopia',
+    'electrocardiogram',
+    'echocardiogram',
+    'ambulatory blood pressure monitoring',
+    'ultrasound',
+    'computed tomography',
+    'magnetic resonance imaging',
+    'biopsy',
+    'complete blood count',
+    'arterial blood gas',
+    'blood cultures',
+    'mammography',
+    'cervical cytology',
+    'spirometry',
+    'cardiac catheterization',
+    'ct angiography',
+    'fundoscopy'
   ],
   conduta: [
     'angioplastia primária',
@@ -70,6 +113,22 @@ export const TERM_BANK: Record<string, string[]> = {
     'oxigenoterapia',
     'suporte clínico',
     'psicoterapia',
+    'primary angioplasty',
+    'thrombolysis',
+    'reperfusion',
+    'hospital admission',
+    'antibiotic therapy',
+    'fluid resuscitation',
+    'hydration',
+    'intravenous insulin',
+    'cesarean section',
+    'vaginal delivery',
+    'appendectomy',
+    'laparoscopy',
+    'oxygen therapy',
+    'supportive care',
+    'psychotherapy',
+    'mechanical ventilation'
   ],
   desfecho: [
     'insuficiência cardíaca',
@@ -82,6 +141,18 @@ export const TERM_BANK: Record<string, string[]> = {
     'insuficiência renal',
     'acidente vascular cerebral',
     'morte',
+    'heart failure',
+    'shock',
+    'cerebral edema',
+    'hypokalemia',
+    'eclampsia',
+    'sepsis',
+    'organ damage',
+    'kidney injury',
+    'stroke',
+    'death',
+    'septic shock',
+    'respiratory failure'
   ],
   doenca: TOPIC_LEXICON.flatMap((t) => t.conditions).filter((c, i, arr) => arr.indexOf(c) === i),
 };
@@ -135,7 +206,11 @@ function findTerm(fact: string): TermMatch | null {
   return matches[0];
 }
 
-const NUMBER_UNITS = ['mmHg', 'mg/dL', 'mEq/L', 'mmol/L', 'mUI/L', 'ng/mL', 'U/L', 'mL/kg', '%', 'minutos', 'horas', 'dias', 'semanas', 'meses', 'anos', 'mm', 'cm', 'kg/m²', 'kg', 'bpm', 'irpm'];
+const NUMBER_UNITS = [
+  'mmHg', 'mg/dL', 'mEq/L', 'mmol/L', 'mUI/L', 'ng/mL', 'U/L', 'mL/kg', '%', 'mm', 'cm', 'kg/m²', 'kg', 'bpm', 'irpm',
+  'minutos', 'horas', 'dias', 'semanas', 'meses', 'anos',
+  'minutes', 'hours', 'days', 'weeks', 'months', 'years',
+];
 
 interface NumberMatch {
   raw: string;

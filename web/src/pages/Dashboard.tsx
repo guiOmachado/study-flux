@@ -70,6 +70,10 @@ export function DashboardPage() {
               <Icon name="upload" size={15} />
               Enviar material
             </Link>
+            <Link className="btn btn-ghost" to="/descobrir">
+              <Icon name="globe" size={15} />
+              Descobrir conteúdo
+            </Link>
             {data.totals.dueCards > 0 ? (
               <Link className="btn btn-ghost" to="/revisao">
                 Revisar {data.totals.dueCards}
@@ -104,7 +108,7 @@ export function DashboardPage() {
             </div>
             <div className="stack-sm" style={{ minWidth: 0, flex: 1, maxWidth: 420 }}>
               {[
-                { icon: 'upload', title: '1. Envie o material', text: 'PDF, DOCX, texto colado ou prova com gabarito.' },
+                { icon: 'upload', title: '1. Traga o material', text: 'PDF, prova com gabarito, texto colado, link ou busca em acervos abertos.' },
                 { icon: 'sparkles', title: '2. Gere os casos', text: 'Modo estruturado (sem IA) ou caso clínico completo com IA.' },
                 { icon: 'play', title: '3. Treine e revisar', text: 'Feedback imediato com o trecho do material na justificativa.' },
               ].map((step) => (
@@ -118,10 +122,16 @@ export function DashboardPage() {
                   </div>
                 </div>
               ))}
-              <Link className="btn btn-primary btn-sm" to="/materiais" style={{ alignSelf: 'flex-start', marginTop: 4 }}>
-                Enviar meu primeiro material
-                <Icon name="arrowRight" size={14} />
-              </Link>
+              <div className="row" style={{ gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+                <Link className="btn btn-primary btn-sm" to="/materiais">
+                  Enviar material
+                  <Icon name="arrowRight" size={14} />
+                </Link>
+                <Link className="btn btn-secondary btn-sm" to="/descobrir">
+                  <Icon name="globe" size={14} />
+                  Buscar em acervos
+                </Link>
+              </div>
             </div>
           </div>
         </div>

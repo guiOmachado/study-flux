@@ -11,6 +11,7 @@ import { attemptsRouter } from './routes/attempts';
 import { srsRouter } from './routes/srs';
 import { statsRouter } from './routes/stats';
 import { settingsRouter } from './routes/settings';
+import { discoveryRouter } from './routes/discovery';
 import { ensureSeeded } from './seed';
 import { AIError } from './generation/llm';
 
@@ -32,6 +33,7 @@ app.use('/api/attempts', attemptsRouter);
 app.use('/api/srs', srsRouter);
 app.use('/api/stats', statsRouter);
 app.use('/api/settings', settingsRouter);
+app.use('/api/discovery', discoveryRouter);
 
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'Rota de API não encontrada.' });

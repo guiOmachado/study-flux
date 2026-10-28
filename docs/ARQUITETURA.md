@@ -54,7 +54,7 @@ npm run seed
 npm run reset
 ```
 
-Variáveis: `PORT`, `DATA_DIR`, `APP_SECRET` (ver README). O banco e a conta demo são criados no primeiro start (`ensureSeeded`).
+Variáveis: `PORT`, `DATA_DIR`, `APP_SECRET`, `OPENALEX_MAILTO` (ver README). O banco e a conta demo são criados no primeiro start (`ensureSeeded`).
 
 ---
 
@@ -73,12 +73,22 @@ server/
     extract.ts         PDF (pdfjs), DOCX (mammoth), TXT/MD
     analyze.ts         seções, fatos, questões, gabarito, temas, tipo de material
     lexicon.ts         áreas, temas, condições e tipos de seção (PT-BR)
+  discovery/
+    types.ts           DTOs, contrato SourceProvider, DiscoveryError
+    http.ts            fetch com timeout, limite de tamanho, guarda anti-SSRF, HTML/JATS/XML → texto
+    index.ts           registro de acervos, busca agregada com cache, índice de resultados
+    reference.ts       citação ABNT-ish da fonte (autor, ano, revista, DOI)
+    providers/
+      europepmc.ts pubmed.ts openalex.ts bookshelf.ts local.ts url.ts
+  sources/
+    store.ts           storeSource() — mesmo caminho para upload e descoberta
   generation/
+    service.ts         generateForSource() + persistCases() (upsert por slug)
     structured.ts      gerador offline (cloze + provas antigas)
     cloze.ts           banco de termos por categoria e geração de alternativas
     llm.ts             provedores, prompt, chunking, sanitização, teste de conexão
   routes/
-    auth.ts sources.ts cases.ts generate.ts attempts.ts srs.ts stats.ts settings.ts
+    auth.ts sources.ts cases.ts generate.ts attempts.ts srs.ts stats.ts settings.ts discovery.ts
     helpers.ts         mapeamento de linha → DTO
   seed/
     demoCases.ts demoUser.ts sampleSources.ts index.ts run.ts
@@ -86,8 +96,8 @@ shared/types.ts        contrato compartilhado (DTOs, enums, tipos de caso)
 web/src/
   lib/                 api.ts, auth.tsx, toast.tsx, hooks.ts, useDebounced.ts, format.ts
   components/          Layout, Icon, CasePresentation, ui (Modal, EmptyState, …)
-  pages/               Login, Dashboard, Materials, MaterialDetail, Cases, CaseDetail,
-                       CaseEditor, Train, Simulado, Review, Progress, Settings
+  pages/               Login, Dashboard, Materials, MaterialDetail, Discover, Cases,
+                       CaseDetail, CaseEditor, Train, Simulado, Review, Progress, Settings
   styles.css           design system
 ```
 
@@ -95,6 +105,10 @@ web/src/
 
 ## 4. Fluxo de dados (material → caso)
 
+0. **Origem do conteúdo** — três entradas, todas convergindo para `storeSource()`:
+   - upload/colar texto (`POST /api/sources`);
+   - importar de acervo (`POST /api/discovery/import`) ou por link (`POST /api/discovery/url`);
+   - material já existente na biblioteca (`provider: "local"`, reaproveita a fonte sem duplicar).
 1. **Upload** (`POST /api/sources`, multipart ou JSON com `text`).
 2. **Extração**: `extractDocument` escolhe o parser pelo tipo; devolve texto normalizado, nº de páginas e avisos.
 3. **Análise** (`analyzeSource`):
@@ -131,7 +145,63 @@ web/src/
 
 ---
 
-## 6. Pipeline de ingestão
+## 6. Descoberta em acervos externos
+
+O app não depende só do que o aluno tem no computador: dá para buscar material aberto, importar e gerar casos sem sair da plataforma.
+
+### Contrato
+
+```ts
+interface SourceProvider {
+  id: string;
+  label: string;
+  search(query: string, opts: { limit: number; userId?: number; openAccessOnly?: boolean }): Promise<DiscoveryResult[]>;
+  fetchText(result: DiscoveryResult, mode: 'abstract' | 'fulltext'):
+    Promise<{ title: string; text: string; originUrl: string | null;
+              license: string | null; quality: 'resumo' | 'texto_completo'; notes: string[] }>;
+}
+```
+
+| Acervo | Busca | Texto | Licença |
+| --- | --- | --- | --- |
+| **Europe PMC** | artigos, revisões, diretrizes | JATS completo quando OA + PMCID; senão resumo | CC BY e variantes, informada pelo acervo |
+| **NCBI Bookshelf** | capítulos de livros-texto | XML do capítulo (`efetch`) | domínio público / CC, conforme o livro |
+| **OpenAlex** | metadados + resumo reconstruído | PDF aberto quando `best_oa_location` existe | informada por `license` |
+| **PubMed** | MEDLINE via `esearch` + `efetch` | resumo apenas | resumo público |
+| **Minha biblioteca** | busca textual nos próprios materiais (sem acento, sem caixa) | texto já salvo | material do usuário |
+| **Link direto** | URL informada pelo usuário | HTML/PDF convertido em texto | o usuário declara a origem |
+
+Só fontes **abertas** são baixadas: nada de contornar paywall. Quando só o resumo está acessível, o resultado vem marcado como `resumo` e a importação avisa.
+
+### Fluxo
+
+1. `GET /api/discovery/search?q=…` — consulta os acervos em paralelo; falha de um acervo não derruba a busca (`statuses[]` diz o que falhou e por quê). Resultados ficam em cache de 10 min por combinação (query + acervos + filtros).
+2. `POST /api/discovery/import` — recebe `{provider, id}` (ou o `result` completo), busca o texto, chama `storeSource()` com referência/licença/URL em `originLabel`, `originUrl`, `license` e `notes`, roda `analyzeSource()` e, se `generate`, dispara `generateForSource()`.
+3. `POST /api/discovery/url` — baixa a URL (com guarda anti-SSRF), extrai o texto e segue o mesmo caminho.
+
+O índice de resultados fica em memória por 30 min para que o `import` não dependa de reenviar metadados do cliente, e o `result` enviado pelo cliente é sempre sanitizado.
+
+### Segurança da importação por link
+
+`assertPublicUrl()` resolve o host e bloqueia: esquemas diferentes de http/https, `localhost`, faixas privadas (10/8, 172.16/12, 192.168/16), loopback (127/8, ::1), link-local (169.254/16), CGNAT (100.64/10) e sufixos `.local` / `.internal`. O corpo é limitado a 12 MB, com timeout e `User-Agent` identificando o app. Isso evita SSRF contra a rede interna onde o servidor roda.
+
+### Geração a partir do que foi importado
+
+`generateForSource(userId, source, { mode, maxCases, publish })`:
+- `auto` usa IA quando há chave configurada e cai para o estruturado se a chamada falhar (com aviso em `warnings`);
+- `persistCases()` grava com slug `u{userId}-s{sourceId}-{key}` — **regerar atualiza** os casos existentes em vez de duplicar.
+
+### Material em inglês
+
+`detectLanguage()` roda na análise e marca `analysis.language` (`pt`, `en`, `es`, `outro`). O léxico tem entradas em português e inglês (temas, áreas, tipos de seção, banco de termos e unidades numéricas), então artigos e capítulos em inglês geram casos normalmente. A interface e a IA continuam respondendo em português.
+
+### Testes
+
+`npm run test:discovery` roda 35 verificações offline: parser HTML/JATS/XML, guarda anti-SSRF, os quatro acervos externos com respostas simuladas (resumo e texto completo), cache agregado, importação → análise → geração, regeração sem duplicar e tratamento de erro de rede. Não faz requisição real — roda em qualquer máquina, inclusive sem internet.
+
+---
+
+## 7. Pipeline de ingestão
 
 ### Extração (`server/ingestion/extract.ts`)
 
@@ -153,7 +223,7 @@ web/src/
 
 ---
 
-## 7. Geração estruturada (sem IA)
+## 8. Geração estruturada (sem IA)
 
 ### Provas antigas (`generateFromExam`)
 
@@ -179,7 +249,7 @@ web/src/
 
 ---
 
-## 8. Geração por IA
+## 9. Geração por IA
 
 ### Provedores e endpoint
 
@@ -210,7 +280,7 @@ web/src/
 
 ---
 
-## 9. Treino, simulado e revisão
+## 10. Treino, simulado e revisão
 
 ### Tentativas
 
@@ -238,7 +308,7 @@ web/src/
 
 ---
 
-## 10. API
+## 11. API
 
 | Método | Rota | Descrição |
 | --- | --- | --- |
@@ -257,6 +327,10 @@ web/src/
 | POST | `/api/generate/preview/:id` | Prévia estruturada sem salvar. |
 | POST | `/api/generate/source/:id` | Gerar casos (`mode`, `maxCases`, `publish`). |
 | POST | `/api/generate/topic` | Gerar por tema (exige IA). |
+| GET | `/api/discovery/providers` | Acervos disponíveis, padrão selecionado e se a IA está pronta. |
+| GET | `/api/discovery/search` | Busca agregada (`q`, `providers`, `limit`, `oa`). |
+| POST | `/api/discovery/import` | Importa um resultado (`provider`, `id`, `mode`, `generate`, `aiMode`, `publish`, `maxCases`). |
+| POST | `/api/discovery/url` | Importa por link (`url`, `title`, …). |
 | POST | `/api/attempts` / `start-batch` | Iniciar treino / simulado. |
 | GET | `/api/attempts` / `:id` | Histórico / detalhe. |
 | POST | `/api/attempts/:id/answer` / `finish` | Responder / finalizar. |
@@ -271,23 +345,24 @@ Erros retornam `{ "error": "mensagem em português" }` com status apropriado (40
 
 ---
 
-## 11. Segurança e privacidade
+## 12. Segurança e privacidade
 
 - **Senhas**: `scrypt` com salt aleatório de 16 bytes; comparação com `timingSafeEqual`.
 - **Sessões**: token de 32 bytes em cookie `httpOnly`, `SameSite=Lax`, expiração de 30 dias; sessão apagada no logout.
 - **Força bruta**: bloqueio temporário por e-mail após 8 falhas (5 min) — em memória, suficiente para instância única.
 - **Chave de IA**: cifrada com AES-256-GCM; chave derivada de `APP_SECRET`; nunca devolvida pela API (`hasKey` booleano).
 - **Autorização**: todo recurso verificado por `user_id`; casos publicados legíveis por outros usuários; edição restrita ao autor.
-- **Limites**: JSON 3 MB; upload 25 MB; texto 600 mil caracteres; tentativas de resposta com tempo limitado.
+- **Limites**: JSON 3 MB; upload 25 MB; texto 600 mil caracteres; resposta externa 12 MB; tentativas de resposta com tempo limitado.
+- **SSRF**: importação por link só aceita http/https públicos — loopback, faixas privadas, link-local, CGNAT e sufixos internos são bloqueados após resolução DNS (ver §6).
 - **CSRF**: cookie `SameSite=Lax` + API consumida por mesma origem (proxy em dev, mesmo host em produção).
 - **XSS**: React escapa conteúdo; não há `dangerouslySetInnerHTML`.
-- **Privacidade**: sem telemetria. Sem IA, nenhum dado sai da máquina. Com IA, apenas o texto do material é enviado ao provedor escolhido.
+- **Privacidade**: sem telemetria. Sem IA e sem descoberta, nenhum dado sai da máquina. Com IA, apenas o texto do material é enviado ao provedor escolhido. Na descoberta, só o **termo de busca** vai para os acervos públicos; nada do seu material é enviado a eles.
 
 > Para produção multiusuário: HTTPS obrigatório, rate limit por IP, política de retenção, backup criptografado e revisão de termos de uso/direitos autorais.
 
 ---
 
-## 12. Operação
+## 13. Operação
 
 ### Scripts
 
@@ -298,6 +373,8 @@ Erros retornam `{ "error": "mensagem em português" }` com status apropriado (40
 | `npm start` | API + SPA compilada. |
 | `npm run seed` | Garante conta demo e conteúdo. |
 | `npm run reset` | Remove `data/` (pede confirmação) para recriar do zero. |
+| `npm run typecheck` | TypeScript em servidor, cliente e scripts. |
+| `npm run test:discovery` | Testes dos acervos, do parser externo e da guarda anti-SSRF (offline). |
 | `npm run typecheck` | Checagem TypeScript. |
 
 ### Backup
@@ -329,7 +406,7 @@ Com WAL ativo, prefira parar o servidor ou usar a API de backup do SQLite antes 
 
 ---
 
-## 13. Próximos passos técnicos
+## 14. Próximos passos técnicos
 
 1. **OCR** (Tesseract local via `tesseract.js` ou serviço) com fila assíncrona e status no material.
 2. **Processamento em background** para PDFs grandes (hoje síncrono) — tabela `jobs` + worker.
@@ -339,10 +416,12 @@ Com WAL ativo, prefira parar o servidor ou usar a API de backup do SQLite antes 
 6. **Observabilidade**: log estruturado, métricas de geração e falhas de IA.
 7. **Perfil de domínio** (ver [PRODUTO.md](PRODUTO.md#10-expansão-para-outras-profissões)) para abrir a plataforma a outras profissões.
 8. **i18n** e acessibilidade (foco visível, ARIA em diálogos, contraste AA).
+9. **Mais acervos abertos**: SciELO, LILACS, BVS, DOAJ e diretrizes brasileiras (CONITEC, SBC), além de filtro por idioma na busca.
+10. **Cache persistente de busca** (SQLite) e limite de requisições por usuário para não abusar das APIs públicas dos acervos.
 
 ---
 
-## 14. Arquivos-chave para começar a mexer
+## 15. Arquivos-chave para começar a mexer
 
 | Quero… | Vá para |
 | --- | --- |
@@ -352,6 +431,9 @@ Com WAL ativo, prefira parar o servidor ou usar a API de backup do SQLite antes 
 | Ajustar a leitura de provas/gabaritos | `server/ingestion/analyze.ts` |
 | Mudar o banco de termos das alternativas | `server/generation/cloze.ts` |
 | Alterar o prompt da IA | `server/generation/llm.ts` |
+| Adicionar um acervo externo | `server/discovery/providers/*` + registro em `server/discovery/index.ts` |
+| Mudar o limite/cache das buscas | `server/discovery/index.ts` |
+| Ajustar a guarda anti-SSRF | `server/discovery/http.ts` |
 | Adicionar uma rota | `server/routes/*` + registrar em `server/index.ts` |
 | Mudar o algoritmo de revisão | `server/srs.ts` |
 | Ajustar conteúdo demo | `server/seed/*` |
