@@ -428,7 +428,7 @@ Erros retornam `{ "error": "mensagem em português" }` com status apropriado (40
 | --- | --- |
 | `npm run dev` | API com `tsx watch` + `ng serve` (proxy de `/api`). |
 | `npm run build` | Build da SPA Angular em `web/dist`. |
-| `npm run test:web` | Smoke test da interface em jsdom (login demo + 9 rotas + fluxo de treino). |
+| `npm run test:web` | Smoke test da interface em jsdom (login demo + 9 rotas + fluxo de treino). Roda no CI (`.github/workflows/web.yml`) a cada mudança em `web-ng/`. |
 | `npm start` | API + SPA compilada. |
 | `npm run seed` | Garante conta demo e conteúdo. |
 | `npm run reset` | Remove `data/` (pede confirmação) para recriar do zero. |
