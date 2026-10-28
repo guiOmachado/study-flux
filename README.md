@@ -81,8 +81,9 @@ Outros comandos:
 npm run seed       # cria/atualiza a conta demo e o conteúdo de demonstração
 npm run reset      # apaga o banco local (data/) para começar do zero
 npm run db:backup   # cópia consistente do SQLite (VACUUM INTO) em data/backups
-npm run typecheck  # TypeScript em todo o projeto
-npm run build      # build da interface em web/dist
+npm run typecheck  # TypeScript do servidor, scripts e tipos compartilhados
+npm run build      # build da interface Angular em web/dist
+npm run test:web   # smoke test da interface (jsdom) — precisa do app no ar
 npm start          # serve API + interface compilada em http://localhost:8787
 npm run test:discovery       # testes dos acervos com fixtures (offline, sem rede)
 npm run test:discovery:live  # testes AO VIVO: consultam Europe PMC, Bookshelf, OpenAlex e PubMed de verdade
@@ -143,7 +144,7 @@ Com IA, o material vira **caso clínico narrativo** (paciente, anamnese, exame f
 
 | Camada | Tecnologia | Por quê |
 | --- | --- | --- |
-| Interface | React 19 + React Router 7 + CSS próprio | App rápido, sem dependência de kit visual, com identidade própria. |
+| Interface | Angular 22 (standalone + signals) + CSS próprio | Framework com suporte de longo prazo (até 2028), router/HTTP/forms na caixa e convenções que sustentam mais gente no time. |
 | API | Express 5 + TypeScript (tsx) | Simples de rodar, tipada ponta a ponta com os tipos compartilhados. |
 | Banco | SQLite nativo do Node (`node:sqlite`) | Zero configuração, arquivo único, fácil de fazer backup e de migrar para Postgres depois. |
 | Extração | `pdfjs-dist` (PDF), `mammoth` (DOCX) | Boa extração local, sem serviço externo. |
@@ -157,7 +158,9 @@ server/
   routes/       auth, sources, cases, generate, attempts, srs, stats, settings
   seed/         conta demo, casos autorais e materiais de exemplo
 shared/types.ts tipos usados pelo servidor e pela interface
-web/src/        páginas, componentes, cliente de API e design system
+web-ng/src/app/ componentes standalone: core (API/auth/toast), shared (ui, layout), pages
+web-ng/src/styles.css  design system (o mesmo CSS de antes)
+web/dist/       build da interface (gerado; servido pelo Express)
 docs/           análise de produto e arquitetura
 ```
 

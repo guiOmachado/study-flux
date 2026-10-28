@@ -7,10 +7,10 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-COPY tsconfig.json vite.config.ts ./
+COPY tsconfig.json angular.json ./
 COPY shared ./shared
 COPY server ./server
-COPY web ./web
+COPY web-ng ./web-ng
 RUN npm run build
 
 # ---------- runtime ----------

@@ -4,7 +4,6 @@
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "jsx": "react-jsx",
     "strict": true,
     "noUncheckedIndexedAccess": false,
     "esModuleInterop": true,
@@ -13,11 +12,10 @@
     "allowImportingTsExtensions": false,
     "noEmit": true,
     "types": ["node"],
-    "baseUrl": ".",
     "paths": {
-      "@shared/*": ["shared/*"]
+      "@shared/*": ["./shared/*"]
     },
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["server", "shared", "web/src", "vite.config.ts", "scripts"]
+  "include": ["server", "shared", "scripts"]
 }

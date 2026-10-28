@@ -8,8 +8,8 @@ Documento técnico: como a plataforma está montada, quais decisões foram tomad
 
 ```
 ┌──────────────────────────────┐        ┌──────────────────────────────────────────┐
-│  React 19 + Router 7 (Vite)  │  /api  │  Express 5 + TypeScript (tsx)            │
-│  web/src                     │ ─────▶ │  server/                                 │
+│  Angular 22 (standalone)     │  /api  │  Express 5 + TypeScript (tsx)            │
+│  web-ng/src                  │ ─────▶ │  server/                                 │
 └──────────────────────────────┘        │   ├─ ingestion  (extração + análise)     │
                                         │   ├─ generation (estruturado + IA)       │
                                         │   ├─ routes     (auth, sources, cases…)  │
@@ -21,7 +21,7 @@ Documento técnico: como a plataforma está montada, quais decisões foram tomad
                                                 └────────────────┘
 ```
 
-**Modo desenvolvimento:** Vite em `:5173` faz proxy de `/api` para o Express em `:8787`.
+**Modo desenvolvimento:** `ng serve` (Angular CLI) em `:5173` faz proxy de `/api` para o Express em `:8787`.
 **Modo produção:** `npm run build` gera `web/dist`; `npm start` serve API e interface na mesma porta (`:8787`), com fallback de SPA.
 
 ### Decisões e justificativas
@@ -36,31 +36,37 @@ Documento técnico: como a plataforma está montada, quais decisões foram tomad
 | **Geração por regras + léxico** | Depender só de LLM | Disponibilidade, custo e fidelidade ao texto. |
 | **Sessão por cookie httpOnly** | JWT no localStorage | Cookie httpOnly evita exposição a XSS; SameSite=Lax protege CSRF em requisições cross-site. |
 | **Snapshot das respostas** | Só referenciar `question_id` | Histórico sobrevive a edição/exclusão do caso. |
-| **React 19 + Vite** | Angular | Protótipo pequeno (13 telas, ~6 mil linhas), um desenvolvedor, CSS próprio: React tem menos cerimônia, bundle menor e um único comando de build. Angular seria melhor se o time crescesse (ver abaixo). |
+| **Angular 22 (standalone)** | React 19 + Vite | Longevidade: Angular 22 tem suporte até 2028, traz router/HTTP/forms/testes na caixa e impõe convenções que sustentam um time maior. A v1 nasceu em React e foi migrada (ver abaixo). |
 
-### Por que React e não Angular
+### Por que Angular (e como foi a migração)
 
-A escolha foi feita no início do projeto e **não houve consulta prévia** — vale registrar os dois lados, porque é uma decisão reversível.
+A v1 nasceu em **React 19 + React Router 7 + Vite**: era o caminho mais curto para validar o produto com 13 telas e um desenvolvedor. Depois da validação, a decisão foi revista com um critério diferente — **longevidade do front**, não velocidade do protótipo.
 
-**O que pesou a favor do React + Vite aqui**
+**O que pesou a favor do Angular**
 
-- **Escala do projeto**: 13 telas, ~6 mil linhas, 8 dependências de runtime. Não há necessidade de estrutura imposta por framework.
-- **Um comando**: `npm install && npm run dev`. Sem CLI, sem `angular.json`, sem `zone.js` — combina com a promessa de "o aluno roda na própria máquina".
-- **Bundle**: 421 kB / ~123 kB gzip no total. Baseline do Angular standalone costuma somar algo entre 60 e 100 kB gzip.
-- **CSS próprio** como design system: em Angular, o caminho natural seria Angular Material (visual genérico) ou carregar o mesmo CSS — nenhum ganho.
-- **Tempo até o primeiro valor** importava mais que longevidade do front neste momento.
+- **Ciclo de vida previsível**: Angular 22 está em suporte ativo (LTS até 2028), com política de atualização de 6 meses e `ng update` para as migrações.
+- **Bateria inclusa**: router, `HttpClient` com interceptors, forms, testes e CDK/A11y sem escolher biblioteca por biblioteca.
+- **Convenções para equipe**: injeção de dependência, serviços e estrutura fixa facilitam a entrada de professores, monitores e do TI da faculdade.
+- **Formulários**: o editor de caso (perguntas + alternativas + gabarito) ganha validação declarativa quando migrar para Reactive Forms.
+- **Mercado**: Angular é dominante em bancos, hospitais e governo no Brasil — relevante para quem for manter o projeto.
 
-**O que Angular traria de melhor**
+**O que se perde (e como foi tratado)**
 
-- **Formulários**: o editor de caso (perguntas + alternativas + gabarito) é o caso de uso ideal para Reactive Forms, com validação declarativa.
-- **Convenções para equipe**: DI, módulos/serviços e estrutura fixa ajudam quando entra mais gente (professor, time de TI da faculdade) e o front precisa durar anos.
-- **Bateria inclusa**: router, HTTP com interceptors, i18n, testes e acessibilidade (CDK) sem escolher biblioteca por biblioteca.
-- **Ciclo de vida conhecido**: Angular 22 está ativo (suporte até 2027, LTS até 2028) — previsível para contexto corporativo.
-- **Mercado enterprise no Brasil** (bancos, hospitais, governo) usa muito Angular; se o objetivo for empregabilidade nesse ecossistema, é um argumento legítimo.
+- **Bundle maior**: o app passou de ~123 kB para ~134 kB gzip (build de produção com tree-shaking e `provideZonelessChangeDetection`). Aceitável para uma SPA de estudo.
+- **Mais arquivos de configuração**: `angular.json` + dois `tsconfig` no lugar de um `vite.config.ts` — documentado abaixo.
+- **TypeScript 6**: o Angular 22 exige `>=6.0 <6.1`; o `tsconfig.json` migrou de `baseUrl` para `paths` relativos (`baseUrl` está depreciado no TS 6).
 
-**Se migrar, o custo é só no front**
+**Como foi feito (fase 9 do roadmap)**
 
-O backend não muda: a API é REST/JSON e os DTOs vivem em `shared/types.ts`. Uma migração para Angular reescreve `web/src` (13 páginas + componentes + `lib/api.ts` e `lib/auth`) mantendo o mesmo contrato, e não dá para fazer de forma incremental dentro de um SPA — o normal é um branch paralelo, reaproveitando os tipos e o CSS. Estimativa honesta: dias de trabalho, não horas.
+O backend **não mudou**: a API é REST/JSON e os DTOs vivem em `shared/types.ts`. A migração reescreveu apenas o cliente:
+
+1. `web-ng/src/app/core`: `api.ts` (classe `Api` sobre `HttpClient`, mesma superfície de endpoints), `auth.ts` (signals + `provideAppInitializer`), `toast.ts`, `format.ts`, guards funcionais e interceptor-free `withFetch`.
+2. `web-ng/src/app/shared`: `ui.ts` (Spinner, LoadingBlock, PageHeader, EmptyState, Modal, ConfirmDialog, ProgressRing, StatCard, SectionCard), `icon.ts` (44 ícones), `layout.ts` (sidebar/topbar com badge de revisões) e `case-presentation.ts`.
+3. `web-ng/src/app/pages`: as 13 telas portadas uma a uma, mesmas rotas e mesmos textos.
+4. **CSS intocado**: `web/src/styles.css` virou `web-ng/src/styles.css` sem uma linha alterada — o design system é o mesmo.
+5. Validação: `npm run build` (bundle) + `npm run test:web` (smoke test em jsdom que sobe o bundle real, navega nas rotas, faz login na conta demo e responde uma questão) + conferência manual no preview.
+
+O contrato da API é o mesmo, então React e Angular conviveram no repositório até a paridade — depois o cliente antigo foi removido.
 
 ---
 
@@ -71,13 +77,16 @@ O backend não muda: a API é REST/JSON e os DTOs vivem em `shared/types.ts`. Um
 
 ```bash
 npm install
-npm run dev      # API :8787 + interface :5173
-npm run build    # build da interface
+npm run dev      # API :8787 + Angular :5173 (proxy de /api)
+npm run build    # build da interface (Angular → web/dist)
 npm start        # produção (API + interface em :8787)
 npm run typecheck
+npm run test:web # smoke test da interface (jsdom, precisa do app no ar)
 npm run seed
 npm run reset
 ```
+
+> `npm run dev` sobe `tsx watch server/index.ts` e `ng serve` juntos (`scripts/dev.mjs`). Se preferir separar: `npm run dev:server` e `npm run dev:web`.
 
 Variáveis: `PORT`, `DATA_DIR`, `APP_SECRET`, `OPENALEX_MAILTO`, `TRUST_PROXY`, `SEED_DEMO`, `COOKIE_SECURE` (ver README e [DEPLOY.md](DEPLOY.md)). O banco e a conta demo são criados no primeiro start (`ensureSeeded`).
 
@@ -118,12 +127,17 @@ server/
   seed/
     demoCases.ts demoUser.ts sampleSources.ts index.ts run.ts
 shared/types.ts        contrato compartilhado (DTOs, enums, tipos de caso)
-web/src/
-  lib/                 api.ts, auth.tsx, toast.tsx, hooks.ts, useDebounced.ts, format.ts
-  components/          Layout, Icon, CasePresentation, ui (Modal, EmptyState, …)
-  pages/               Login, Dashboard, Materials, MaterialDetail, Discover, Cases,
-                       CaseDetail, CaseEditor, Train, Simulado, Review, Progress, Settings
-  styles.css           design system
+web-ng/src/
+  main.ts              bootstrapApplication(App, appConfig)
+  app/
+    app.config.ts      router, HttpClient (withFetch), zona-less, inicializador de sessão
+    app.routes.ts      13 rotas + guards (authGuard / guestGuard)
+    core/              api.ts (HttpClient), auth.ts (signals), toast.ts, format.ts, guards.ts
+    shared/            ui.ts, icon.ts (44 ícones), layout.ts, case-presentation.ts, toasts.ts
+    pages/             login, dashboard, materials, material-detail, discover, cases,
+                       case-detail, case-editor, train, simulado, review, progress, settings
+  styles.css           design system (idêntico ao da v1)
+web/dist/              build servido pelo Express
 ```
 
 ---
@@ -399,7 +413,7 @@ Erros retornam `{ "error": "mensagem em português" }` com status apropriado (40
 - **Limites**: JSON 3 MB; upload 25 MB; texto 600 mil caracteres; resposta externa 12 MB; tentativas de resposta com tempo limitado.
 - **SSRF**: importação por link só aceita http/https públicos — loopback, faixas privadas, link-local, CGNAT e sufixos internos são bloqueados após resolução DNS (ver §6).
 - **CSRF**: cookie `SameSite=Lax` + API consumida por mesma origem (proxy em dev, mesmo host em produção).
-- **XSS**: React escapa conteúdo; não há `dangerouslySetInnerHTML`.
+- **XSS**: o Angular escapa toda interpolação do template; não há `innerHTML`, `bypassSecurityTrustHtml` nem `eval` no cliente.
 - **Privacidade**: sem telemetria. Sem IA e sem descoberta, nenhum dado sai da máquina. Com IA, apenas o texto do material é enviado ao provedor escolhido. Na descoberta, só o **termo de busca** vai para os acervos públicos; nada do seu material é enviado a eles.
 
 > Para produção multiusuário: HTTPS obrigatório, rate limit por IP, política de retenção, backup criptografado e revisão de termos de uso/direitos autorais.
@@ -412,12 +426,13 @@ Erros retornam `{ "error": "mensagem em português" }` com status apropriado (40
 
 | Comando | O que faz |
 | --- | --- |
-| `npm run dev` | API com `tsx watch` + Vite (proxy). |
-| `npm run build` | Build da SPA em `web/dist`. |
+| `npm run dev` | API com `tsx watch` + `ng serve` (proxy de `/api`). |
+| `npm run build` | Build da SPA Angular em `web/dist`. |
+| `npm run test:web` | Smoke test da interface em jsdom (login demo + 9 rotas + fluxo de treino). |
 | `npm start` | API + SPA compilada. |
 | `npm run seed` | Garante conta demo e conteúdo. |
 | `npm run reset` | Remove `data/` (pede confirmação) para recriar do zero. |
-| `npm run typecheck` | TypeScript em servidor, cliente e scripts. |
+| `npm run typecheck` | TypeScript no servidor, nos scripts e nos tipos compartilhados (o cliente é checado pelo `ng build`). |
 | `npm run test:discovery` | Testes dos acervos, do parser externo e da guarda anti-SSRF (offline). |
 | `npm run db:backup` | Cópia íntegra do SQLite (`VACUUM INTO`) com rotação; funciona com o servidor rodando. |
 | `npm run test:discovery:live` | Mesmo caminho, mas contra as APIs reais (precisa de internet). `--probe` só mede conectividade. |
@@ -458,7 +473,7 @@ O app é **um processo de longa duração com SQLite em disco**. Isso define o a
 
 | Peça | Arquivo | Observação |
 | --- | --- | --- |
-| Imagem de produção | `Dockerfile` | Multi-stage (`npm ci` + `vite build` → runtime com `npm ci --omit=dev`), usuário `node`, `VOLUME /data`, `HEALTHCHECK` em `/api/health`. |
+| Imagem de produção | `Dockerfile` | Multi-stage (`npm ci` + `ng build` → runtime com `npm ci --omit=dev`), usuário `node`, `VOLUME /data`, `HEALTHCHECK` em `/api/health`. |
 | Execução local/VPS | `docker-compose.yml` | Volume `studyflux-data` em `/data`, variáveis com padrões seguros. |
 | Render | `render.yaml` | Blueprint com disco de 1 GB em `/data`, `APP_SECRET` gerado, `SEED_DEMO=0`. |
 | Fly.io | `fly.toml` | Volume `studyflux_data`, `force_https`, região `gru`, **uma máquina só**. |
@@ -482,7 +497,7 @@ Passo a passo operacional: [DEPLOY.md](DEPLOY.md).
 2. **Processamento em background** para PDFs grandes (hoje síncrono) — tabela `jobs` + worker.
 3. **Moderação/curadoria** de casos publicados (revisão, denúncia, selo “verificado”).
 4. **Postgres + storage** para escala multiusuário; SQLite permanece como modo local.
-5. **Testes automatizados**: unitários do parser e do cloze (casos de borda), integração das rotas com banco em memória, e2e com Playwright.
+5. **Testes automatizados**: unitários do parser e do cloze (casos de borda), integração das rotas com banco em memória e e2e com Playwright (hoje há o smoke test em jsdom, `npm run test:web`).
 6. **Observabilidade**: log estruturado, métricas de geração e falhas de IA.
 7. **Perfil de domínio** (ver [PRODUTO.md](PRODUTO.md#10-expansão-para-outras-profissões)) para abrir a plataforma a outras profissões.
 8. **i18n** e acessibilidade (foco visível, ARIA em diálogos, contraste AA).
@@ -495,7 +510,7 @@ Passo a passo operacional: [DEPLOY.md](DEPLOY.md).
 
 | Quero… | Vá para |
 | --- | --- |
-| Mudar o visual | `web/src/styles.css` |
+| Mudar o visual | `web-ng/src/styles.css` |
 | Adicionar uma área/tema médico | `server/ingestion/lexicon.ts` |
 | Melhorar a extração de PDF | `server/ingestion/extract.ts` |
 | Ajustar a leitura de provas/gabaritos | `server/ingestion/analyze.ts` |
