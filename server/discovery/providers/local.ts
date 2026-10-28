@@ -28,6 +28,8 @@ export const localProvider: SourceProvider = {
     });
     return matched.slice(0, options.limit).map((row) => {
       const analysis = safeJson<SourceAnalysis | null>(row.analysis, null);
+      // Ano do próprio título (ex.: "Prova 2023") é mais útil que o ano do upload.
+      const titleYear = row.title.match(/\b(19|20)\d{2}\b/)?.[0] ?? row.created_at.slice(0, 4);
       return {
         provider: 'local' as const,
         providerLabel: LABEL,
@@ -35,10 +37,15 @@ export const localProvider: SourceProvider = {
         title: row.title,
         authors: ['Seu material'],
         journal: row.discipline,
-        year: row.created_at.slice(0, 4),
+        year: titleYear,
         doi: null,
         url: null,
-        abstract: row.text.slice(0, 260).replace(/\s+/g, ' ').trim(),
+        abstract: row.text
+          .slice(0, 400)
+          .replace(/[#>*_`]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 240),
         openAccess: true,
         license: 'Material do próprio usuário',
         hasFullText: true,
