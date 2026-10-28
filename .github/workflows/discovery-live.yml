@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       query:
-        description: Termo buscado nos acervos (ex.: sepsis, sepse, hipertensão)
+        description: Termo buscado nos acervos (ex. sepsis, sepse, hipertensao)
         required: false
         default: sepsis
   schedule:
