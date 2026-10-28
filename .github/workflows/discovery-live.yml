@@ -1,0 +1,45 @@
+name: Descoberta (ao vivo)
+
+# Os testes offline (`npm run test:discovery`) usam fixtures e rodam em qualquer lugar.
+# Este workflow roda a variante AO VIVO, que consulta Europe PMC, NCBI Bookshelf,
+# OpenAlex e PubMed de verdade — precisa de saída para a internet, que o runner
+# do GitHub Actions tem. Use "Run workflow" para disparar manualmente.
+
+on:
+  workflow_dispatch:
+    inputs:
+      query:
+        description: Termo buscado nos acervos (ex.: sepsis, sepse, hipertensão)
+        required: false
+        default: sepsis
+  schedule:
+    # Toda segunda-feira, 09:00 UTC (06:00 em Brasília)
+    - cron: '0 9 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    name: Acervos reais
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Conectividade com os acervos
+        run: npm run test:discovery:live -- --probe
+
+      - name: Testes ao vivo
+        run: npm run test:discovery:live -- --query="${{ inputs.query || 'sepsis' }}"
+
+      - name: Testes offline (fixtures)
+        if: always()
+        run: npm run test:discovery

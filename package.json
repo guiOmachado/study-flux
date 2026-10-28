@@ -13,7 +13,8 @@
     "seed": "tsx server/seed/run.ts",
     "typecheck": "tsc --noEmit",
     "reset": "node scripts/reset.mjs",
-    "test:discovery": "tsx scripts/test-discovery.ts"
+    "test:discovery": "tsx scripts/test-discovery.ts",
+    "test:discovery:live": "tsx scripts/test-discovery-live.ts"
   },
   "dependencies": {
     "express": "^5.1.0",

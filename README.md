@@ -83,7 +83,8 @@ npm run reset      # apaga o banco local (data/) para começar do zero
 npm run typecheck  # TypeScript em todo o projeto
 npm run build      # build da interface em web/dist
 npm start          # serve API + interface compilada em http://localhost:8787
-npm run test:discovery  # testes dos acervos (offline, sem rede)
+npm run test:discovery       # testes dos acervos com fixtures (offline, sem rede)
+npm run test:discovery:live  # testes AO VIVO: consultam Europe PMC, Bookshelf, OpenAlex e PubMed de verdade
 ```
 
 ### Variáveis de ambiente (opcionais)
@@ -142,6 +143,7 @@ Detalhes em [docs/ARQUITETURA.md](docs/ARQUITETURA.md).
 
 ## Limitações conhecidas (honestas)
 
+- A busca em acervos **precisa de saída para a internet no servidor**. Neste ambiente de preview a rede é bloqueada para hosts externos; para validar contra as APIs reais, rode `npm run test:discovery:live` na sua máquina ou dispare o workflow *Descoberta (ao vivo)* no GitHub Actions.
 - A **busca** nos acervos é aberta (sem conta), mas **importar, gerar casos, treinar e revisar exigem login**. A busca anônima é limitada (30 por visitante a cada 5 minutos) para não abusar das APIs públicas.
 - A descoberta usa **apenas fontes abertas**. Artigos pagos não são baixados: para eles, o app importa só o resumo, quando disponível, e sempre mostra o link da editora. O preview em nuvem pode não ter saída para a internet — nesse caso a busca avisa e continua funcionando com a sua biblioteca.
 - **PDF escaneado sem camada de texto** não é lido: não há OCR nesta versão. A plataforma avisa e sugere colar o texto.

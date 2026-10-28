@@ -206,6 +206,16 @@ O índice de resultados fica em memória por 30 min para que o `import` não dep
 
 ### Testes
 
+Existem dois suites, com propósitos diferentes:
+
+| Comando | Rede | O que valida |
+| --- | --- | --- |
+| `npm run test:discovery` | **Não** (fixtures) | 39 verificações: parsers, guarda anti-SSRF, os quatro acervos com respostas simuladas, cache, importação → análise → geração, busca pública sem biblioteca pessoal. Determinístico, roda em CI offline. |
+| `npm run test:discovery:live` | **Sim** | Consulta as APIs reais: conectividade por host, busca em cada acervo, texto completo/resumo, busca agregada, importação por link e o fluxo material → análise → casos. Aceita `--query=`, `--providers=`, `--skip-import` e `--probe` (só conectividade). Encerra com código 1 se não houver internet. |
+| `npm run test:discovery:live -- --probe` | Sim | Diagnóstico rápido: mostra status e latência de cada acervo, sem rodar o suite. |
+
+O workflow `.github/workflows/discovery-live.yml` roda o suite ao vivo no GitHub Actions (manual ou semanal, segunda 09:00 UTC) — é a forma de validar a integração real quando o ambiente local/preview não tem egress. Ambientes com filtro de rede derrubam o handshake TLS de qualquer host fora da allowlist; nesse caso só o suite offline funciona.
+
 `npm run test:discovery` roda 39 verificações offline: parser HTML/JATS/XML, guarda anti-SSRF, os quatro acervos externos com respostas simuladas (resumo e texto completo), cache agregado, importação → análise → geração, regeração sem duplicar e tratamento de erro de rede. Não faz requisição real — roda em qualquer máquina, inclusive sem internet.
 
 ---
@@ -384,6 +394,7 @@ Erros retornam `{ "error": "mensagem em português" }` com status apropriado (40
 | `npm run reset` | Remove `data/` (pede confirmação) para recriar do zero. |
 | `npm run typecheck` | TypeScript em servidor, cliente e scripts. |
 | `npm run test:discovery` | Testes dos acervos, do parser externo e da guarda anti-SSRF (offline). |
+| `npm run test:discovery:live` | Mesmo caminho, mas contra as APIs reais (precisa de internet). `--probe` só mede conectividade. |
 | `npm run typecheck` | Checagem TypeScript. |
 
 ### Backup
