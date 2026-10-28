@@ -36,6 +36,31 @@ Documento técnico: como a plataforma está montada, quais decisões foram tomad
 | **Geração por regras + léxico** | Depender só de LLM | Disponibilidade, custo e fidelidade ao texto. |
 | **Sessão por cookie httpOnly** | JWT no localStorage | Cookie httpOnly evita exposição a XSS; SameSite=Lax protege CSRF em requisições cross-site. |
 | **Snapshot das respostas** | Só referenciar `question_id` | Histórico sobrevive a edição/exclusão do caso. |
+| **React 19 + Vite** | Angular | Protótipo pequeno (13 telas, ~6 mil linhas), um desenvolvedor, CSS próprio: React tem menos cerimônia, bundle menor e um único comando de build. Angular seria melhor se o time crescesse (ver abaixo). |
+
+### Por que React e não Angular
+
+A escolha foi feita no início do projeto e **não houve consulta prévia** — vale registrar os dois lados, porque é uma decisão reversível.
+
+**O que pesou a favor do React + Vite aqui**
+
+- **Escala do projeto**: 13 telas, ~6 mil linhas, 8 dependências de runtime. Não há necessidade de estrutura imposta por framework.
+- **Um comando**: `npm install && npm run dev`. Sem CLI, sem `angular.json`, sem `zone.js` — combina com a promessa de "o aluno roda na própria máquina".
+- **Bundle**: 421 kB / ~123 kB gzip no total. Baseline do Angular standalone costuma somar algo entre 60 e 100 kB gzip.
+- **CSS próprio** como design system: em Angular, o caminho natural seria Angular Material (visual genérico) ou carregar o mesmo CSS — nenhum ganho.
+- **Tempo até o primeiro valor** importava mais que longevidade do front neste momento.
+
+**O que Angular traria de melhor**
+
+- **Formulários**: o editor de caso (perguntas + alternativas + gabarito) é o caso de uso ideal para Reactive Forms, com validação declarativa.
+- **Convenções para equipe**: DI, módulos/serviços e estrutura fixa ajudam quando entra mais gente (professor, time de TI da faculdade) e o front precisa durar anos.
+- **Bateria inclusa**: router, HTTP com interceptors, i18n, testes e acessibilidade (CDK) sem escolher biblioteca por biblioteca.
+- **Ciclo de vida conhecido**: Angular 22 está ativo (suporte até 2027, LTS até 2028) — previsível para contexto corporativo.
+- **Mercado enterprise no Brasil** (bancos, hospitais, governo) usa muito Angular; se o objetivo for empregabilidade nesse ecossistema, é um argumento legítimo.
+
+**Se migrar, o custo é só no front**
+
+O backend não muda: a API é REST/JSON e os DTOs vivem em `shared/types.ts`. Uma migração para Angular reescreve `web/src` (13 páginas + componentes + `lib/api.ts` e `lib/auth`) mantendo o mesmo contrato, e não dá para fazer de forma incremental dentro de um SPA — o normal é um branch paralelo, reaproveitando os tipos e o CSS. Estimativa honesta: dias de trabalho, não horas.
 
 ---
 
